@@ -55,41 +55,49 @@ class Asset(Document):
 			flt(self.opening_accumulated_depreciation))
 
 	def validate_asset_values(self):
-		if flt(self.expected_value_after_useful_life) >= flt(self.gross_purchase_amount):
-			frappe.throw(_("Expected Value After Useful Life must be less than Gross Purchase Amount"))
-
-		if not flt(self.gross_purchase_amount):
-			frappe.throw(_("Gross Purchase Amount is mandatory"), frappe.MandatoryError)
-
-		if not self.is_existing_asset:
-			self.opening_accumulated_depreciation = 0
-			self.number_of_depreciations_booked = 0
-			if not self.next_depreciation_date:
-				frappe.throw(_("Next Depreciation Date is mandatory for new asset"))
-		else:
-			depreciable_amount = flt(self.gross_purchase_amount) - flt(self.expected_value_after_useful_life)
-			if flt(self.opening_accumulated_depreciation) > depreciable_amount:
-					frappe.throw(_("Opening Accumulated Depreciation must be less than equal to {0}")
-						.format(depreciable_amount))
-
-			if self.opening_accumulated_depreciation:
-				if not self.number_of_depreciations_booked:
-					frappe.throw(_("Please set Number of Depreciations Booked"))
+		if self.depreciation_method == "Non-Depreciable Asset":
+			if self.is_existing_asset == 0:
+				pass
 			else:
+				self.opening_accumulated_depreciation = 0.0
+				pass
+
+		else:
+			if flt(self.expected_value_after_useful_life) >= flt(self.gross_purchase_amount):
+				frappe.throw(_("Expected Value After Useful Life must be less than Gross Purchase Amount"))
+
+			if not flt(self.gross_purchase_amount):
+				frappe.throw(_("Gross Purchase Amount is mandatory"), frappe.MandatoryError)
+
+			if not self.is_existing_asset:
+				self.opening_accumulated_depreciation = 0
 				self.number_of_depreciations_booked = 0
+				if not self.next_depreciation_date:
+					frappe.throw(_("Next Depreciation Date is mandatory for new asset"))
+			else:
+				depreciable_amount = flt(self.gross_purchase_amount) - flt(self.expected_value_after_useful_life)
+				if flt(self.opening_accumulated_depreciation) > depreciable_amount:
+						frappe.throw(_("Opening Accumulated Depreciation must be less than equal to {0}")
+							.format(depreciable_amount))
 
-			if cint(self.number_of_depreciations_booked) > cint(self.total_number_of_depreciations):
-				frappe.throw(_("Number of Depreciations Booked cannot be greater than Total Number of Depreciations"))
+				if self.opening_accumulated_depreciation:
+					if not self.number_of_depreciations_booked:
+						frappe.throw(_("Please set Number of Depreciations Booked"))
+				else:
+					self.number_of_depreciations_booked = 0
 
-		if self.next_depreciation_date and getdate(self.next_depreciation_date) < getdate(nowdate()):
-			frappe.msgprint(_("Next Depreciation Date is entered as past date"), title=_('Warning'), indicator='red')
+				if cint(self.number_of_depreciations_booked) > cint(self.total_number_of_depreciations):
+					frappe.throw(_("Number of Depreciations Booked cannot be greater than Total Number of Depreciations"))
 
-		if self.next_depreciation_date and getdate(self.next_depreciation_date) < getdate(self.purchase_date):
-			frappe.throw(_("Next Depreciation Date cannot be before Purchase Date"))
+			if self.next_depreciation_date and getdate(self.next_depreciation_date) < getdate(nowdate()):
+				frappe.msgprint(_("Next Depreciation Date is entered as past date"), title=_('Warning'), indicator='red')
 
-		if (flt(self.value_after_depreciation) > flt(self.expected_value_after_useful_life)
-			and not self.next_depreciation_date):
-				frappe.throw(_("Please set Next Depreciation Date"))
+			if self.next_depreciation_date and getdate(self.next_depreciation_date) < getdate(self.purchase_date):
+				frappe.throw(_("Next Depreciation Date cannot be before Purchase Date"))
+
+			if (flt(self.value_after_depreciation) > flt(self.expected_value_after_useful_life)
+				and not self.next_depreciation_date):
+					frappe.throw(_("Please set Next Depreciation Date"))
 
 	def make_depreciation_schedule(self):
 		if self.depreciation_method != 'Manual':
@@ -147,9 +155,8 @@ class Asset(Document):
 		accumulated_depreciation_after_full_schedule = \
 			max([d.accumulated_depreciation_amount for d in self.get("schedules")])
 
-		asset_value_after_full_schedule = flt(flt(self.gross_purchase_amount) -
-			flt(accumulated_depreciation_after_full_schedule),
-			self.precision('expected_value_after_useful_life'))
+		asset_value_after_full_schedule = (flt(self.gross_purchase_amount) -
+			flt(accumulated_depreciation_after_full_schedule))
 
 		if self.expected_value_after_useful_life < asset_value_after_full_schedule:
 			frappe.throw(_("Expected value after useful life must be greater than or equal to {0}")
