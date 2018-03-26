@@ -42,3 +42,15 @@ frappe.ui.form.on('Asset Category', {
 
 	}
 });
+
+frappe.ui.form.on('Asset Category', {
+	depreciation_method: function(frm) {
+		frm.toggle_display("total_number_of_depreciations", frm.doc.depreciation_method != "Non-Depreciable Asset");
+		frm.set_df_property("total_number_of_depreciations", "reqd", frm.doc.depreciation_method != "Non-Depreciable Asset");
+		frm.set_value("total_number_of_depreciations", 0);
+
+		frm.set_df_property("frequency_of_depreciation", "reqd", frm.doc.depreciation_method != "Non-Depreciable Asset");
+		frm.toggle_display("frequency_of_depreciation", frm.doc.depreciation_method != "Non-Depreciable Asset");
+		frm.set_value("frequency_of_depreciation", 0);
+	}
+});

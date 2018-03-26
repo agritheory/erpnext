@@ -23,11 +23,12 @@ frappe.ui.form.on('Asset', {
 				}
 			};
 		});
+		non_depreciable_asset_form_inputs(frm);
 	},
 
 	refresh: function(frm) {
 		frappe.ui.form.trigger("Asset", "is_existing_asset");
-		frm.toggle_display("next_depreciation_date", frm.doc.docstatus < 1);
+		frm.toggle_display("next_depreciation_date", frm.doc.docstatus < 1 && frm.doc.depreciation_method != "Non-Depreciable Asset");
 		frm.events.make_schedules_editable(frm);
 
 		if (frm.doc.docstatus==1) {
@@ -49,6 +50,7 @@ frappe.ui.form.on('Asset', {
 					erpnext.asset.restore_asset(frm);
 				});
 			}
+
 			if (frm.doc.status=='Submitted' && !frm.doc.is_existing_asset && !frm.doc.purchase_invoice) {
 				frm.add_custom_button(__("Purchase Invoice"), function() {
 					frm.trigger("make_purchase_invoice");
@@ -61,12 +63,15 @@ frappe.ui.form.on('Asset', {
 			}
 			frm.page.set_inner_btn_group_as_primary(__("Make"));
 			frm.trigger("setup_chart");
+
+			frm.trigger("show_graph");
+			non_depreciable_asset_form_inputs(frm);
 		}
 	},
 
-	setup_chart: function(frm) {
-		var x_intervals = [frm.doc.purchase_date];
-		var asset_values = [frm.doc.gross_purchase_amount];
+	show_graph: function(frm) {
+		var x_intervals = ["x", frm.doc.purchase_date];
+		var asset_values = ["Asset Value", frm.doc.gross_purchase_amount];
 		var last_depreciation_date = frm.doc.purchase_date;
 
 		if(frm.doc.opening_accumulated_depreciation) {
@@ -99,20 +104,31 @@ frappe.ui.form.on('Asset', {
 			last_depreciation_date = frm.doc.disposal_date;
 		}
 
-		frm.dashboard.render_graph({
-			title: "Asset Value",
+		frm.dashboard.setup_chart({
 			data: {
-				labels: x_intervals,
-				datasets: [{
-					color: 'green',
-					values: asset_values,
-					formatted: asset_values.map(d => d.toFixed(2))
-				}]
+				x: 'x',
+				columns: [x_intervals, asset_values],
+				regions: {
+					'Asset Value': [{'start': last_depreciation_date, 'style':'dashed'}]
+				}
 			},
-			type: 'line'
+			legend: {
+				show: false
+			},
+			axis: {
+				x: {
+					type: 'timeseries',
+					tick: {
+						format: "%d-%m-%Y"
+					}
+				},
+				y: {
+					min: 0,
+					padding: {bottom: 10}
+				}
+			}
 		});
 	},
-
 
 	item_code: function(frm) {
 		if(frm.doc.item_code) {
@@ -134,6 +150,10 @@ frappe.ui.form.on('Asset', {
 
 	is_existing_asset: function(frm) {
 		frm.toggle_reqd("next_depreciation_date", (!frm.doc.is_existing_asset && frm.doc.calculate_depreciation));
+		frm.toggle_enable("supplier", frm.doc.is_existing_asset);
+		frm.toggle_reqd("next_depreciation_date", !frm.doc.is_existing_asset && frm.doc.depreciation_method != "Non-Depreciable Asset");
+		//frm.toggle_display("next_depreciation_date", frm.doc.depreciation_method != "Non-Depreciable Asset");
+
 	},
 
 	opening_accumulated_depreciation: function(frm) {
@@ -329,4 +349,39 @@ erpnext.asset.transfer_asset = function(frm) {
 		})
 	});
 	dialog.show();
+}
+
+frappe.ui.form.on('Asset', {
+	depreciation_method: function(frm) {
+			non_depreciable_asset_form_inputs(frm);
+	}
+});
+
+function non_depreciable_asset_form_inputs(frm) {
+	// toggle form elements and requirements based on Non-Depreciable Asset status
+	frm.toggle_display("total_number_of_depreciations", frm.doc.depreciation_method != "Non-Depreciable Asset");
+	frm.set_df_property("total_number_of_depreciations", {"reqd":0}, frm.doc.depreciation_method != "Non-Depreciable Asset");
+	if(frm.doc.depreciation_method != "Non-Depreciable Asset"){
+		frm.set_value("total_number_of_depreciations", 0);
+	} else {}
+
+	frm.set_df_property("frequency_of_depreciation", {"reqd":0}, frm.doc.depreciation_method != "Non-Depreciable Asset");
+	frm.toggle_display("frequency_of_depreciation", frm.doc.depreciation_method != "Non-Depreciable Asset");
+	if(frm.doc.depreciation_method != "Non-Depreciable Asset"){
+		frm.set_value("frequency_of_depreciation", 0);
+	} else {}
+
+	frm.set_df_property("next_depreciation_date", {"reqd":0}, frm.doc.depreciation_method != "Non-Depreciable Asset");
+	frm.toggle_display("next_depreciation_date", frm.doc.depreciation_method != "Non-Depreciable Asset");
+	if(frm.doc.depreciation_method != "Non-Depreciable Asset"){
+		frm.set_value("next_depreciation_date", 0);
+	} else {}
+
+	frm.toggle_display("expected_value_after_useful_life", frm.doc.depreciation_method != "Non-Depreciable Asset");
+	if(frm.doc.depreciation_method != "Non-Depreciable Asset"){
+		frm.set_value("expected_value_after_useful_life", 0);
+	} else {}
+
+	frm.toggle_display("opening_accumulated_depreciation", frm.doc.depreciation_method != "Non-Depreciable Asset");
+
 };
