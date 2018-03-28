@@ -20,21 +20,7 @@ try {
 frappe.provide("/assets/erpnext/js/frappe-datatable.js");
 console.log("datatable datatable success");
 } catch(err) {console.log("datatable js", err)}
-
-
-frappe.require("/assets/erpnext/css/frappe-datatable.css");
-frappe.provide("/assets/erpnext/js/lodash.js");
-frappe.provide("/assets/erpnext/js/Sortable.min.js");
-frappe.provide("/assets/erpnext/js/clusterize.min.js");
-frappe.provide("/assets/erpnext/js/frappe-datatable.js");
 */
-
-/* Custom Datatables*/
-frappe.require("/assets/swimventory/css/frappe-datatable.css");
-frappe.require("/assets/swimventory/js/lodash.js");
-frappe.require("/assets/swimventory/js/Sortable.min.js");
-frappe.require("/assets/swimventory/js/clusterize.min.js");
-frappe.require("/assets/swimventory/js/frappe-datatable.js");
 
 frappe.ui.form.on("Bank Reconciliation Datatable", {
 	setup: function(frm) {
@@ -70,6 +56,7 @@ frappe.ui.form.on("Bank Reconciliation Datatable", {
 			method: "update_clearance_date",
 			doc: frm.doc,
 			callback: function(r, rt) {
+				calculate_difference(frm);
 				frm.refresh_field("payment_entries");
 				frm.refresh_fields();
 			}
@@ -80,7 +67,10 @@ frappe.ui.form.on("Bank Reconciliation Datatable", {
 			method: "get_payment_entries",
 			doc: frm.doc,
 			callback: function(r, rt) {
+				calculate_difference(frm);
 				frm.refresh_field("payment_entries");
+				frm.refresh_field("total_amount");
+				frm.refresh_field("uncleared_items_remaining");
 				$(frm.fields_dict.payment_entries.wrapper).find("[data-fieldname=amount]").each(function(i,v){
 					if (i !=0){
 						$(v).addClass("text-right");
@@ -88,6 +78,7 @@ frappe.ui.form.on("Bank Reconciliation Datatable", {
 				});
 			}
 		});
+
 	},
 	onload_post_render: function(frm) {
 		get_account_currency(frm);
@@ -192,6 +183,12 @@ function render_datatable(frm) {
 }
 
 function calculate_difference(frm) {
-	frm.doc.difference = (frm.doc.beginning_book_balance - frm.doc.ending_book_balance) - (frm.doc.beginning_bank_balance - frm.doc.ending_bank_balance)
-	frm.refresh_field("difference");
+	frappe.call({
+		method: "calculate_difference",
+		doc: frm.doc,
+	}).done(() => {
+		frm.refresh_field("difference");
+	}).fail((r) => {
+		console.log(r);
+	})
 }

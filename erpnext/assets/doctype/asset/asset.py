@@ -9,7 +9,7 @@ from frappe.utils import flt, add_months, cint, nowdate, getdate, today, date_di
 from frappe.model.document import Document
 from erpnext.accounts.doctype.purchase_invoice.purchase_invoice import get_fixed_asset_account
 from erpnext.assets.doctype.asset.depreciation \
-import get_disposal_account_and_cost_center, get_depreciation_accounts
+        import get_disposal_account_and_cost_center, get_depreciation_accounts
 
 
 class Asset(Document):
@@ -114,10 +114,6 @@ class Asset(Document):
             and not self.next_depreciation_date and self.calculate_depreciation):
                 frappe.throw(_("Please set Next Depreciation Date"))
 
-        if (flt(self.value_after_depreciation) > flt(self.expected_value_after_useful_life)
-            and not self.next_depreciation_date):
-                frappe.throw(_("Please set Next Depreciation Date"))
-
     def make_depreciation_schedule(self):
 
         if self.depreciation_method != 'Manual':
@@ -208,7 +204,9 @@ class Asset(Document):
 
     def get_depreciation_amount_prorata_temporis(self, depreciable_value, start_date=None, end_date=None):
         if start_date and end_date:
-            prorata_temporis =  min(abs(flt(date_diff(str(end_date), str(start_date)))) / flt(frappe.db.get_value("Asset Settings", None, "number_of_days_in_fiscal_year")), 1)
+            prorata_temporis = min(abs(flt(date_diff(str(end_date),
+                str(start_date)))) /
+                flt(frappe.db.get_value("Asset Settings", None, "number_of_days_in_fiscal_year")), 1)
         else:
             prorata_temporis = 1
 
@@ -225,8 +223,9 @@ class Asset(Document):
         accumulated_depreciation_after_full_schedule = \
             max([d.accumulated_depreciation_amount for d in self.get("schedules")])
 
-        asset_value_after_full_schedule = (flt(self.gross_purchase_amount) -
-            flt(accumulated_depreciation_after_full_schedule))
+        asset_value_after_full_schedule = flt(flt(self.gross_purchase_amount) -
+            flt(accumulated_depreciation_after_full_schedule),
+            self.precision('expected_value_after_useful_life'))
 
         if self.expected_value_after_useful_life < asset_value_after_full_schedule:
             frappe.throw(_("Expected value after useful life must be greater than or equal to {0}")
@@ -339,7 +338,9 @@ def transfer_asset(args):
 
     frappe.db.commit()
 
-    frappe.msgprint(_("Asset Movement record {0} created").format("<a href='#Form/Asset Movement/{0}'>{0}</a>".format(movement_entry.name)))
+    frappe.msgprint(_("Asset Movement record {0} created").
+        format("<a href='#Form/Asset Movement/{0}'>{0}</a>".format(movement_entry.name)))
+
 
 @frappe.whitelist()
 def get_item_details(item_code):

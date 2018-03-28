@@ -8,10 +8,13 @@ from frappe.utils.data import date_diff
 from frappe.utils import flt, getdate, nowdate, fmt_money
 from frappe import msgprint, _
 from frappe.model.document import Document
+import re
+
 
 form_grid_templates = {
     "journal_entries": "templates/form_grid/bank_reconciliation_grid.html"
 }
+
 
 class BankReconciliationDatatable(Document):
     def get_payment_entries(self):
@@ -22,7 +25,6 @@ class BankReconciliationDatatable(Document):
         condition = ""
         if not self.include_reconciled_entries:
             condition = "and (clearance_date is null or clearance_date='0000-00-00')"
-
 
         journal_entries = frappe.db.sql("""
             select
@@ -77,10 +79,14 @@ class BankReconciliationDatatable(Document):
 
         self.set('payment_entries', [])
         self.total_amount = 0.0
+        self.uncleared_items_remaining = 0
 
         for d in entries:
             row = self.append('payment_entries', {})
+            self.uncleared_items_remaining += 1 if d.clearance_date is None else 0
             amount = d.debit if d.debit else d.credit
+            d.amount_float = d.debit if d.debit else -d.credit
+            print(d.amount_float)
             d.amount = fmt_money(amount, 2, d.account_currency) + " " + (_("Dr") if d.debit else _("Cr"))
             d.pop("credit")
             d.pop("debit")
@@ -143,3 +149,10 @@ class BankReconciliationDatatable(Document):
 
     def get_account_currency(self):
         self.account_currency = frappe.db.get_value("Account", self.bank_account, fieldname="account_currency")
+
+    def calculate_difference(self):
+        net_uncleared = 0.0
+        for p in self.payment_entries:
+            net_uncleared += p.amount_float if p.clearance_date is None else 0.0
+
+        self.difference = self.ending_bank_balance - (self.beginning_book_balance + net_uncleared)
