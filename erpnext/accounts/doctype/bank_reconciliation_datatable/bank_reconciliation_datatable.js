@@ -22,6 +22,14 @@ console.log("datatable datatable success");
 } catch(err) {console.log("datatable js", err)}
 */
 
+frappe.require("/assets/swimventory/css/frappe-datatable.css");
+frappe.require("/assets/swimventory/js/lodash.js");
+frappe.require("/assets/swimventory/js/Sortable.min.js");
+frappe.require("/assets/swimventory/js/clusterize.min.js");
+frappe.require("/assets/swimventory/js/frappe-datatable.js");
+frappe.require("/assets/swimventory/css/frappe-charts.min.css");
+frappe.require("/assets/swimventory/js/frappe-charts.min.iife.js");
+
 frappe.ui.form.on("Bank Reconciliation Datatable", {
 	setup: function(frm) {
 		frm.add_fetch("bank_account", "account_currency", "account_currency");
@@ -139,10 +147,10 @@ function render_datatable(frm) {
 	}
 
 	function makeDatatable() {
-		console.log('No of Rows:', data.length)
+		console.log('No of Rows:', data.length);
 
 		const start = performance.now();
-		var datatable = new DataTable(document.querySelector('#datatable'), {
+		var datatable = new DataTable(document.querySelector("[data-fieldname='payment_entries']"), {
 			addCheckboxColumn: true,
 			addSerialNoColumn: true,
 			enableClusterize: true,
@@ -178,7 +186,20 @@ function render_datatable(frm) {
 		console.log("window");
 		window.datatable = datatable;
 	}
-	makeDatatable();
+
+	// Remove this timeout in favor of something like the following from DPO
+	/*
+	frappe.call({
+		method: "get_fish_farm_inventory",
+		doc: cur_frm.doc
+	}).done((r) => {
+		build datatable here
+		makeDatatable();
+	});
+	 */
+    setTimeout(function(){
+        makeDatatable();
+	}, 1000);
 
 }
 
