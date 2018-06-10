@@ -2,7 +2,7 @@
 # License: GNU General Public License v3. See license.txt
 
 
-from __future__ import unicode_literals
+
 import unittest
 import frappe, erpnext
 import frappe.defaults
@@ -12,7 +12,7 @@ from erpnext import set_perpetual_inventory
 from erpnext.stock.doctype.serial_no.serial_no import SerialNoDuplicateError
 from erpnext.accounts.doctype.account.test_account import get_inventory_account
 from erpnext.stock.doctype.item.test_item import make_item
-
+from six import iteritems
 class TestPurchaseReceipt(unittest.TestCase):
 	def setUp(self):
 		frappe.db.set_value("Buying Settings", None, "allow_multiple_items", 1)
@@ -95,7 +95,6 @@ class TestPurchaseReceipt(unittest.TestCase):
 		make_stock_entry(item_code="_Test Item", target="_Test Warehouse 1 - _TC", qty=100, basic_rate=100)
 		make_stock_entry(item_code="_Test Item Home Desktop 100", target="_Test Warehouse 1 - _TC",
 			qty=100, basic_rate=100)
-
 		pr = make_purchase_receipt(item_code="_Test FG Item", qty=10, rate=500, is_subcontracted="Yes")
 		self.assertEqual(len(pr.get("supplied_items")), 2)
 
@@ -180,7 +179,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 	def test_purchase_return_for_serialized_items(self):
 		def _check_serial_no_values(serial_no, field_values):
 			serial_no = frappe.get_doc("Serial No", serial_no)
-			for field, value in field_values.items():
+			for field, value in iteritems(field_values):
 				self.assertEqual(cstr(serial_no.get(field)), value)
 
 		from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
@@ -217,7 +216,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 		return_pr = make_purchase_receipt(item_code=item_code, qty=-10, uom="Unit",
 			stock_uom="Box", conversion_factor=0.1, is_return=1, return_against=pr.name)
 
-		self.assertEquals(abs(return_pr.items[0].stock_qty), 1.0)
+		self.assertEqual(abs(return_pr.items[0].stock_qty), 1.0)
 
 	def test_closed_purchase_receipt(self):
 		from erpnext.stock.doctype.purchase_receipt.purchase_receipt import update_purchase_receipt_status
@@ -273,7 +272,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 		from erpnext.stock.doctype.stock_entry.test_stock_entry import make_stock_entry
 		from erpnext.stock.doctype.delivery_note.test_delivery_note import create_delivery_note
 
-		item_code = frappe.db.get_value('Item', {'has_serial_no': 1})
+		item_code = frappe.db.get_value('Item', {'has_serial_no': 1, 'is_fixed_asset': 0})
 		if not item_code:
 			item = make_item("Test Serial Item 1", dict(has_serial_no=1))
 			item_code = item.name
@@ -319,6 +318,12 @@ class TestPurchaseReceipt(unittest.TestCase):
 				'stock_uom': 'Box', 'is_fixed_asset': 1, 'has_serial_no': 1,
 				'asset_category': asset_category, 'serial_no_series': 'ABC.###'})
 
+		if not frappe.db.exists('Location', 'Test Location'):
+			frappe.get_doc({
+				'doctype': 'Location',
+				'location_name': 'Test Location'
+			}).insert()
+
 		pr = make_purchase_receipt(item_code=asset_item, qty=3)
 		asset = frappe.db.get_value('Asset', {'purchase_receipt': pr.name}, 'name')
 		asset_movement = frappe.db.get_value('Asset Movement', {'reference_name': pr.name}, 'name')
@@ -328,6 +333,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 		pr.cancel()
 		serial_nos = frappe.get_all('Serial No', {'asset': asset}, 'name') or []
 		self.assertEquals(len(serial_nos), 0)
+		frappe.db.sql("delete from `tabLocation")
 		frappe.db.sql("delete from `tabAsset Category`")
 		frappe.db.sql("delete from `tabAsset`")
 
@@ -365,7 +371,8 @@ def make_purchase_receipt(**args):
 		"conversion_factor": args.conversion_factor or 1.0,
 		"serial_no": args.serial_no,
 		"stock_uom": args.stock_uom or "_Test UOM",
-		"uom": args.uom or "_Test UOM"
+		"uom": args.uom or "_Test UOM",
+		"asset_location": "Test Location" if args.item_code == "Test Serialized Asset Item" else ""
 	})
 
 	if not args.do_not_save:

@@ -102,7 +102,8 @@ class AccountsController(TransactionBase):
 			self.validate_non_invoice_documents_schedule()
 
 	def before_print(self):
-		if self.doctype in ['Purchase Order', 'Sales Order']:
+		if self.doctype in ['Purchase Order', 'Sales Order', 'Sales Invoice', 'Purchase Invoice',
+			'Supplier Quotation', 'Purchase Receipt', 'Delivery Note', 'Quotation']:
 			if self.get("group_same_items"):
 				self.group_similar_items()
 
@@ -684,6 +685,7 @@ class AccountsController(TransactionBase):
 			if item.item_code in group_item_qty:
 				item.qty = group_item_qty[item.item_code]
 				item.amount = group_item_amount[item.item_code]
+				item.rate = flt(flt(item.amount)/flt(item.qty), item.precision("rate"))
 				del group_item_qty[item.item_code]
 			else:
 				duplicate_list.append(item)
@@ -731,7 +733,7 @@ class AccountsController(TransactionBase):
 			if self.doctype == "Sales Order" and getdate(d.due_date) < getdate(self.transaction_date):
 				frappe.throw(_("Row {0}: Due Date cannot be before posting date").format(d.idx))
 			elif d.due_date in dates:
-				li.append('{0} in row {1}'.format(d.due_date, d.idx))
+				li.append(_("{0} in row {1}").format(d.due_date, d.idx))
 			dates.append(d.due_date)
 
 		if li:

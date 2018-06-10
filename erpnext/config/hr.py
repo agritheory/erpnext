@@ -96,6 +96,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Additional Salary",
+				},
+				{
+					"type": "doctype",
 					"name": "Employee Tax Exemption Declaration",
 				},
 				{
@@ -122,10 +126,6 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Salary Component",
-				},
-				{
-					"type": "doctype",
-					"name": "Additional Salary Component",
 				},
 				{
 					"type": "doctype",
@@ -396,6 +396,17 @@ def get_data():
 					"label": _("Expense Claims"),
 					"youtube_id": "5SZHJF--ZFY"
 				}
+			]
+		},
+		{
+			"label": _("Analytics"),
+			"items": [
+				{
+					"type": "report",
+					"is_query_report": True,
+					"name": "Department Analytics",
+					"doctype": "Employee"
+				},
 			]
 		}
 	]

@@ -4,17 +4,19 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils.nestedset import NestedSet
+from frappe.utils.nestedset import NestedSet, get_root_of
 
 class SupplierGroup(NestedSet):
-	nsm_parent_field = 'parent_supplier_group';
+	nsm_parent_field = 'parent_supplier_group'
 
-	def update_nsm_model(self):
-		frappe.utils.nestedset.update_nsm(self)
+	def validate(self):
+		if not self.parent_supplier_group:
+			self.parent_supplier_group = get_root_of("Supplier Group")
 
 	def on_update(self):
-		self.update_nsm_model()
+		NestedSet.on_update(self)
 		self.validate_one_root()
 
 	def on_trash(self):
-		self.update_nsm_model()
+		NestedSet.validate_if_child_exists(self)
+		frappe.utils.nestedset.update_nsm(self)

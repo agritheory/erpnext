@@ -105,14 +105,14 @@ class Asset(AccountsController):
 
 						number_of_pending_depreciations += 1
 						for n in range(number_of_pending_depreciations):
-							if n == range(number_of_pending_depreciations)[-1]:
+							if n == list(range(number_of_pending_depreciations))[-1]:
 								schedule_date = add_months(self.available_for_use_date, n * 12)
 								previous_scheduled_date = add_months(d.depreciation_start_date, (n-1) * 12)
 								depreciation_amount = \
 									self.get_depreciation_amount_prorata_temporis(value_after_depreciation,
 										d, previous_scheduled_date, schedule_date)
 
-							elif n == range(number_of_pending_depreciations)[0]:
+							elif n == list(range(number_of_pending_depreciations))[0]:
 								schedule_date = d.depreciation_start_date
 								depreciation_amount = \
 									self.get_depreciation_amount_prorata_temporis(value_after_depreciation,
@@ -305,10 +305,11 @@ class Asset(AccountsController):
 
 			if self.journal_entry_for_scrap:
 				status = "Scrapped"
-			elif flt(value_after_depreciation) <= expected_value_after_useful_life:
-				status = "Fully Depreciated"
-			elif flt(self.value_after_depreciation) < flt(self.gross_purchase_amount):
-				status = 'Partially Depreciated'
+			elif self.finance_books:
+				if flt(value_after_depreciation) <= expected_value_after_useful_life:
+					status = "Fully Depreciated"
+				elif flt(self.value_after_depreciation) < flt(self.gross_purchase_amount):
+					status = 'Partially Depreciated'
 		elif self.docstatus == 2:
 			status = "Cancelled"
 		return status
