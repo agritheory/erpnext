@@ -13,6 +13,7 @@ from erpnext.setup.utils import get_exchange_rate
 from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.hr.doctype.expense_claim.expense_claim import update_reimbursed_amount
 from erpnext.controllers.accounts_controller import AccountsController, get_supplier_block_status
+from frappe.utils.data import add_days, date_diff
 
 from six import string_types, iteritems
 
@@ -299,12 +300,12 @@ class PaymentEntry(AccountsController):
 			if self.payment_type == "Receive" \
 				and self.base_total_allocated_amount < self.base_received_amount + total_deductions \
 				and self.total_allocated_amount < self.paid_amount + (total_deductions / self.source_exchange_rate):
-					self.unallocated_amount = (self.base_received_amount + total_deductions - 
+					self.unallocated_amount = (self.base_received_amount + total_deductions -
 						self.base_total_allocated_amount) / self.source_exchange_rate
 			elif self.payment_type == "Pay" \
 				and self.base_total_allocated_amount < (self.base_paid_amount - total_deductions) \
 				and self.total_allocated_amount < self.received_amount + (total_deductions / self.target_exchange_rate):
-					self.unallocated_amount = (self.base_paid_amount - (total_deductions + 
+					self.unallocated_amount = (self.base_paid_amount - (total_deductions +
 						self.base_total_allocated_amount)) / self.target_exchange_rate
 
 	def set_difference_amount(self):
@@ -909,3 +910,52 @@ def get_paid_amount(dt, dn, party_type, party, account, due_date):
 	""".format(dr_or_cr=dr_or_cr), (dt, dn, party_type, party, account, due_date))
 
 	return paid_amount[0][0] if paid_amount else 0
+
+
+@frappe.whitelist
+def set_paid_invoices(transactions):
+	for item in transactions:
+		frappe.db.set_value("Purchase Invoice", item["name"], "outstanding_amount", 0)
+	frappe.db.commit()
+
+
+@frappe.whitelist()
+def calc_discount(discount_double_check):
+	"""  list of dictionaries, Schema
+		[{"reference_name": frm.doc.references[i].reference_name,
+		"reference_doctype": frm.doc.references[i].reference_doctype,
+		"posting_date": frm.doc.posting_date,
+		"company": frm.doc.company
+		},{... ]
+	"""
+	deductions = []
+	if isinstance(discount_double_check, basestring):
+		discount_double_check = json.loads(discount_double_check)
+	for i in discount_double_check:
+		discount_account = frappe.db.get_value("Company", i["company"], "default_sales_discount_account")
+		default_cost_center = frappe.db.get_value("Company", i["company"], "cost_center")
+		if i["reference_doctype"] in ["Sales Invoice", "Purchase Invoice"]:
+			date = "posting_date"
+		else:  # Sales Order and Purchase Order
+			date = "transaction_date"
+		doc = frappe.get_value(i["reference_doctype"], i["reference_name"], [date,
+				"payment_terms_template", "grand_total", "apply_discount_on", "net_total"], as_dict=True)
+		if doc["payment_terms_template"]:
+			ptt = frappe.get_doc("Payment Terms Template", doc["payment_terms_template"])
+			for pt in ptt.terms:
+				if pt.discount_percent or pt.discount_eligible_days:
+					if(date_diff(i["posting_date"], add_days(doc[date], pt.discount_eligible_days)) <= 0):
+						if doc["apply_discount_on"] == "Grand Total":
+							discount = doc["grand_total"] * (pt.discount_percent / 100)
+						else:
+							discount = doc["net_total"] * (pt.discount_percent / 100)
+
+						deductions.append({"account": discount_account,
+							"cost_center": default_cost_center,
+							"amount": discount,
+							"reference_document": i["reference_name"],
+							"discount_eligible_percent": pt.discount_percent,
+							"discount_date": add_days(doc[date], pt.discount_eligible_days)
+						})
+						print("deductions in loop", deductions)
+	return deductions
