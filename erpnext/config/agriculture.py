@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
+
 from frappe import _
+
 
 def get_data():
 	return [
@@ -8,28 +10,32 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Crop",
+					"name": "Crop"
 				},
 				{
 					"type": "doctype",
-					"name": "Crop Cycle",
+					"name": "Crop Cycle"
 				},
 				{
 					"type": "doctype",
-					"name": "Land Unit",
+					"name": "Land Unit"
 				}
 			]
 		},
 		{
-			"label": _("Diseases & Fertilizers"),
+			"label": _("Operations"),
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Disease",
+					"name": "Work"
 				},
 				{
 					"type": "doctype",
-					"name": "Fertilizer",
+					"name": "Disease"
+				},
+				{
+					"type": "doctype",
+					"name": "Fertilizer"
 				}
 			]
 		},
@@ -38,27 +44,27 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Plant Analysis",
+					"name": "Plant Analysis"
 				},
 				{
 					"type": "doctype",
-					"name": "Soil Analysis",
+					"name": "Soil Analysis"
 				},
 				{
 					"type": "doctype",
-					"name": "Water Analysis",
+					"name": "Water Analysis"
 				},
 				{
 					"type": "doctype",
-					"name": "Soil Texture",
+					"name": "Soil Texture"
 				},
 				{
 					"type": "doctype",
-					"name": "Weather",
+					"name": "Weather"
 				},
 				{
 					"type": "doctype",
-					"name": "Agriculture Analysis Criteria",
+					"name": "Agriculture Analysis Criteria"
 				}
 			]
 		},
