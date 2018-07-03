@@ -584,6 +584,10 @@ frappe.ui.form.on('Payment Entry', {
 	allocate_party_amount_against_ref_docs: function(frm, paid_amount) {
 		var total_positive_outstanding_including_order = 0;
 		var total_negative_outstanding = 0;
+		var total_deductions = frappe.utils.sum($.map(frm.doc.deductions || [],
+			function(d) { return flt(d.amount) }));
+
+		paid_amount -= total_deductions;
 
 		$.each(frm.doc.references || [], function(i, row) {
 			if(flt(row.outstanding_amount) > 0)
@@ -801,46 +805,13 @@ frappe.ui.form.on('Payment Entry', {
 		}
 	}
 });
-// CHANGED 06-04-2018 by TYLER erpnext.accounts.doctype.payment_entry.payment_entry.calc_discount
-// erpnext.accounts.doctype.payment_entry.payment_entry.set_paid_invoices
-// CHANGED 06-04-2018 by TYLER
+// CHANGED 7/3/18 by @agritheory
 frappe.ui.form.on("Payment Entry", {
 	paid_to: function(frm) {
 		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
 			get_eligible_discount(frm);
 		}
-	}
-});
-frappe.ui.form.on("Payment Entry", {
-	party: function(frm) {
-		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
-			get_eligible_discount(frm);
-		}
-	}
-});
-
-frappe.ui.form.on("Payment Entry", {
-	paid_amount: function(frm) {
-		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
-			get_eligible_discount(frm);
-		}
-	}
-});
-frappe.ui.form.on("Payment Entry", {
-	paid_from: function(frm) {
-		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
-			get_eligible_discount(frm);
-		}
-	}
-});
-frappe.ui.form.on("Payment Entry Reference", {
-	references_remove: function(frm) {
-		frm.doc.deductions = [];
-		get_eligible_discount(frm);
-	}
-});
-
-frappe.ui.form.on("Payment Entry", {
+	},
 	onload: function(frm) {
 		if(frm.doc.references && frm.doc.paid_to && frm.doc.party && frm.doc.docstatus == 0){
 			get_eligible_discount(frm);
@@ -848,9 +819,60 @@ frappe.ui.form.on("Payment Entry", {
 		if(frm.doc.docstatus == "1"){
 			set_paid_invoices(frm);
 		}
+	},
+	party: function(frm) {
+		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
+			get_eligible_discount(frm);
+		}
+	},
+	paid_amount: function(frm) {
+		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
+			get_eligible_discount(frm);
+		}
+	},
+	paid_from: function(frm) {
+		if(frm.doc.paid_to && frm.doc.party && frm.doc.paid_from && frm.doc.docstatus == 0){
+			get_eligible_discount(frm);
+		}
 	}
 });
 
+
+frappe.ui.form.on("Payment Entry Reference", {
+	references_remove: function(frm) {
+		frm.doc.deductions = [];
+		get_eligible_discount(frm);
+	},
+	reference_doctype: function(frm, cdt, cdn) {
+		var row = locals[cdt][cdn];
+		frm.events.validate_reference_document(frm, row);
+	},
+	reference_name: function(frm, cdt, cdn) {
+		var row = locals[cdt][cdn];
+		return frappe.call({
+			method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_reference_details",
+			args: {
+				reference_doctype: row.reference_doctype,
+				reference_name: row.reference_name,
+				party_account_currency: frm.doc.payment_type=="Receive" ?
+					frm.doc.paid_from_account_currency : frm.doc.paid_to_account_currency
+			},
+			callback: function(r, rt) {
+				if(r.message) {
+					$.each(r.message, function(field, value) {
+						frappe.model.set_value(cdt, cdn, field, value);
+					})
+
+					let allocated_amount = frm.doc.unallocated_amount > row.outstanding_amount ?
+						row.outstanding_amount : frm.doc.unallocated_amount;
+
+					frappe.model.set_value(cdt, cdn, 'allocated_amount', allocated_amount);
+					frm.refresh_fields();
+				}
+			}
+		})
+	}
+});
 
 function set_paid_invoices(frm){
 	let refs = [];
@@ -880,18 +902,21 @@ function set_paid_invoices(frm){
 				});
 		}
 	}
-
 	if(discount_double_check.length > 0){
-		frappe.call({
-			method: "erpnext.accounts.doctype.payment_entry.payment_entry.set_paid_invoices",
-			args: {"discount_double_check": discount_double_check},
-		}).done((r) => {
-			frappe.notify("")
-			console.log("Invoices updated with discounted amount")
-		}).fail((f) => {
-			console.log("Failed on set_paid_invoices", f);
-		});
+		function call_set_invoices(frm, discount_double_check)
 	}
+}
+
+function call_set_invoices(frm, discount_double_check){
+	frappe.call({
+		method: "erpnext.accounts.doctype.payment_entry.payment_entry.set_paid_invoices",
+		args: {"discount_double_check": discount_double_check},
+	}).done((r) => {
+		frappe.notify("")
+		console.log("Invoices updated with discounted amount")
+	}).fail((f) => {
+		console.log("Failed on set_paid_invoices", f);
+	});
 }
 
 function get_eligible_discount(frm){
@@ -924,6 +949,12 @@ function get_eligible_discount(frm){
 	}
 
 	if(discount_double_check.length > 0){
+		serve_eligible_discount(frm, discount_double_check);
+	}
+}
+
+function serve_eligible_discount(frm, discount_double_check){
+	{
 		frappe.call({
 			method: "erpnext.accounts.doctype.payment_entry.payment_entry.calc_discount",
 			args: {"discount_double_check": discount_double_check},

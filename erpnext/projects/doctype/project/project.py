@@ -160,6 +160,10 @@ class Project(Document):
 				for row in weighted_progress:
 					pct_complete += row["progress"] * row["task_weight"]
 				self.percent_complete = flt(flt(pct_complete), 2)
+		if self.percent_complete == 100:
+			self.status = "Completed"
+		elif not self.status == "Cancelled":
+			self.status = "Open"
 
 	def update_costing(self):
 		from_time_sheet = frappe.db.sql("""select
@@ -363,17 +367,17 @@ def weekly():
 
 @frappe.whitelist()
 def times_check(from1, to, first_email, second_email, daily_time_to_send, weekly_time_to_send):
-    from1 = datetime.datetime.strptime(from1, "%H:%M:%S")
+    from1 = datetime.datetime.strptime(from1, "%H:%M:%S.%f")
     from1 = from1.strftime("%H:00:00")
-    to = datetime.datetime.strptime(to, "%H:%M:%S")
+    to = datetime.datetime.strptime(to, "%H:%M:%S.%f")
     to = to.strftime("%H:00:00")
-    first_email = datetime.datetime.strptime(first_email, "%H:%M:%S")
+    first_email = datetime.datetime.strptime(first_email, "%H:%M:%S.%f")
     first_email = first_email.strftime("%H:00:00")
-    second_email = datetime.datetime.strptime(second_email, "%H:%M:%S")
+    second_email = datetime.datetime.strptime(second_email, "%H:%M:%S.%f")
     second_email = second_email.strftime("%H:00:00")
-    daily_time_to_send = datetime.datetime.strptime(daily_time_to_send, "%H:%M:%S")
+    daily_time_to_send = datetime.datetime.strptime(daily_time_to_send, "%H:%M:%S.%f")
     daily_time_to_send = daily_time_to_send.strftime("%H:00:00")
-    weekly_time_to_send = datetime.datetime.strptime(weekly_time_to_send, "%H:%M:%S")
+    weekly_time_to_send = datetime.datetime.strptime(weekly_time_to_send, "%H:%M:%S.%f")
     weekly_time_to_send = weekly_time_to_send.strftime("%H:00:00")
     return {"from1": from1, "to": to, "first_email": first_email, "second_email": second_email,"daily_time_to_send": daily_time_to_send, "weekly_time_to_send": weekly_time_to_send}
 
@@ -407,6 +411,35 @@ def create_project_update(project):
 				message= project_update_url
 			)
 	return data
+
+def update_project_sales_billing():
+	sales_update_frequency = frappe.db.get_single_value("Selling Settings", "sales_update_frequency")
+	if sales_update_frequency == "Each Transaction":
+		return
+	elif (sales_update_frequency == "Monthly" and frappe.utils.now_datetime().day != 1):
+		return
+
+	#Else simply fallback to Daily
+	exists_query = '(SELECT 1 from `tab{doctype}` where docstatus = 1 and project = `tabProject`.name)'
+	project_map = {}
+	for project_details in frappe.db.sql('''
+			SELECT name, 1 as order_exists, null as invoice_exists from `tabProject` where
+			exists {order_exists}
+			union
+			SELECT name, null as order_exists, 1 as invoice_exists from `tabProject` where
+			exists {invoice_exists}
+		'''.format(
+			order_exists=exists_query.format(doctype="Sales Order"),
+			invoice_exists=exists_query.format(doctype="Sales Invoice"),
+		), as_dict=True):
+		project = project_map.setdefault(project_details.name, frappe.get_doc('Project', project_details.name))
+		if project_details.order_exists:
+			project.update_sales_amount()
+		if project_details.invoice_exists:
+			project.update_billed_amount()
+
+	for project in project_map.values():
+		project.save()
 
 @frappe.whitelist()
 def create_kanban_board_if_not_exists(project):

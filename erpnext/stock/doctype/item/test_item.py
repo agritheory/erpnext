@@ -37,6 +37,7 @@ def make_item(item_code, properties=None):
 	if item.is_stock_item:
 		for item_default in [doc for doc in item.get("item_defaults") if not doc.default_warehouse]:
 			item_default.default_warehouse = "_Test Warehouse - _TC"
+			item_default.company = "_Test Company"
 	item.insert()
 
 	return item
@@ -254,9 +255,9 @@ class TestItem(unittest.TestCase):
 			d.conversion_factor = value
 
 		self.assertEqual(item_doc.uoms[0].uom, "Carat")
-		self.assertEqual(item_doc.uoms[0].conversion_factor, 5)
+		self.assertEqual(item_doc.uoms[0].conversion_factor, 0.2)
 		self.assertEqual(item_doc.uoms[1].uom, "Kg")
-		self.assertEqual(item_doc.uoms[1].conversion_factor, 0.001)
+		self.assertEqual(item_doc.uoms[1].conversion_factor, 1000)
 
 	def test_item_variant_by_manufacturer(self):
 		fields = [{'field_name': 'description'}, {'field_name': 'variant_based_on'}]

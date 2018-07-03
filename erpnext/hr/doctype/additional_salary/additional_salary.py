@@ -25,11 +25,6 @@ class AdditionalSalary(Document):
  			frappe.throw(_("To date can not greater than employee's relieving date"))
 
 	def get_amount(self, sal_start_date, sal_end_date):
-		# If additional salary dates in between the salary slip dates
-		# then return complete additional salary amount
-		if getdate(sal_start_date) <= getdate(self.from_date) <= getdate(sal_end_date)\
-			and getdate(sal_end_date) >= getdate(self.to_date) >= getdate(sal_start_date):
-			return self.amount
 		start_date = getdate(sal_start_date)
 		end_date = getdate(sal_end_date)
 		total_days = date_diff(getdate(self.to_date), getdate(self.from_date)) + 1
@@ -38,11 +33,8 @@ class AdditionalSalary(Document):
 			start_date = getdate(self.from_date)
 		if getdate(sal_end_date) > getdate(self.to_date):
 			end_date = getdate(self.to_date)
-		no_of_days = date_diff(getdate(end_date), getdate(start_date))
+		no_of_days = date_diff(getdate(end_date), getdate(start_date)) + 1
 		return amount_per_day * no_of_days
-
-
-
 
 @frappe.whitelist()
 def get_additional_salary_component(employee, start_date, end_date):
@@ -72,8 +64,12 @@ def get_additional_salary_component(employee, start_date, end_date):
 			struct_row['salary_component'] = salary_component.name
 			struct_row['abbr'] = salary_component.salary_component_abbr
 			struct_row['do_not_include_in_total'] = salary_component.do_not_include_in_total
+			struct_row['is_tax_applicable'] = salary_component.is_tax_applicable
+			struct_row['variable_based_on_taxable_salary'] = salary_component.variable_based_on_taxable_salary
+			struct_row['is_additional_component'] = salary_component.is_additional_component
 			additional_components_dict['amount'] = amount
 			additional_components_dict['struct_row'] = struct_row
+			additional_components_dict['type'] = salary_component.type
 			additional_components_array.append(additional_components_dict)
 
 		if len(additional_components_array) > 0:

@@ -185,6 +185,23 @@ frappe.ui.form.on('Payroll Entry', {
 			}
 		});
 	},
+
+	validate_attendance: function(frm){
+		if(frm.doc.validate_attendance && frm.doc.employees){
+			frappe.call({
+				method: 'validate_employee_attendance',
+				args: {},
+				callback: function(r) {
+					render_employee_attendance(frm, r.message);
+				},
+				doc: frm.doc,
+				freeze: true,
+				freeze_message: 'Validating Employee Attendance...'
+			});
+		}else{
+			frm.fields_dict.attendance_detail_html.html("");
+		}
+	}
 });
 
 // Submit salary slips
@@ -214,6 +231,9 @@ cur_frm.cscript.get_employee_details = function (doc) {
 	var callback = function (r) {
 		if (r.docs[0].employees){
 			cur_frm.refresh_field('employees');
+			if(r.docs[0].validate_attendance){
+				render_employee_attendance(cur_frm, r.message);
+			}
 		}
 	};
 	return $c('runserverobj', { 'method': 'fill_employee_details', 'docs': doc }, callback);
@@ -221,17 +241,28 @@ cur_frm.cscript.get_employee_details = function (doc) {
 
 let make_bank_entry = function (frm) {
 	var doc = frm.doc;
-	if (doc.company && doc.start_date && doc.end_date) {
+	if (doc.company && doc.start_date && doc.end_date && doc.payment_account) {
 		return frappe.call({
 			doc: cur_frm.doc,
 			method: "make_payment_entry",
-			callback: function (r) {
-				if (r.message)
-					var doc = frappe.model.sync(r.message)[0];
-				frappe.set_route("Form", doc.doctype, doc.name);
-			}
+			callback: function() {
+				frappe.set_route(
+					'List', 'Journal Entry', {posting_date: frm.doc.posting_date}
+				);
+			},
+			freeze: true,
+			freeze_message: __("Creating Payment Entries......")
 		});
 	} else {
-		frappe.msgprint(__("Company, From Date and To Date is mandatory"));
+		frappe.msgprint(__("Company, Payment Account, From Date and To Date is mandatory"));
 	}
 };
+
+
+let render_employee_attendance = function(frm, data) {
+	frm.fields_dict.attendance_detail_html.html(
+		frappe.render_template('employees_to_mark_attendance', {
+			data: data
+		})
+	);
+}

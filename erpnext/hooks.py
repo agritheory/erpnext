@@ -15,6 +15,8 @@ develop_version = '11.x.x-develop'
 
 error_report_email = "support@erpnext.com"
 
+docs_app = "foundation"
+
 app_include_js = "assets/js/erpnext.min.js"
 app_include_css = "assets/css/erpnext.css"
 web_include_js = "assets/js/erpnext-web.min.js"
@@ -127,8 +129,6 @@ website_route_rules = [
 	{"from_route": "/admissions", "to_route": "Student Admission"},
 	{"from_route": "/boms", "to_route": "BOM"},
 	{"from_route": "/timesheets", "to_route": "Timesheet"},
-	{"from_route": "/grant-application", "to_route": "Grant Application"},
-	{"from_route": "/chapters", "to_route": "Chapter"},
 ]
 
 standard_portal_menu_items = [
@@ -149,8 +149,7 @@ standard_portal_menu_items = [
 	{"title": _("Fees"), "route": "/fees", "reference_doctype": "Fees", "role":"Student"},
 	{"title": _("Newsletter"), "route": "/newsletters", "reference_doctype": "Newsletter"},
 	{"title": _("Admission"), "route": "/admissions", "reference_doctype": "Student Admission"},
-	{"title": _("Grant Application"), "route": "/grant-application", "reference_doctype": "Grant Application", "role": "Non Profit Portal User"},
-	{"title": _("Chapter"), "route": "/chapters", "reference_doctype": "Chapter"}
+	{"title": _("Certification"), "route": "/certification", "reference_doctype": "Certification Application"},
 ]
 
 default_roles = [
@@ -211,6 +210,9 @@ doc_events = {
 	},
 	('Sales Invoice', 'Purchase Invoice', 'Delivery Note'): {
 		'validate': 'erpnext.regional.india.utils.set_place_of_supply'
+	},
+	"Contact":{
+		"on_trash": "erpnext.support.doctype.issue.issue.update_issue"
 	}
 }
 
@@ -235,7 +237,9 @@ scheduler_events = {
 		"erpnext.setup.doctype.company.company.cache_companies_monthly_sales_history",
 		"erpnext.manufacturing.doctype.bom_update_tool.bom_update_tool.update_latest_price_in_all_boms",
 		"erpnext.assets.doctype.asset.asset.update_maintenance_status",
-		"erpnext.assets.doctype.asset.asset.make_post_gl_entry"
+		"erpnext.assets.doctype.asset.asset.make_post_gl_entry",
+		"erpnext.crm.doctype.contract.contract.update_status_for_contracts",
+		"erpnext.projects.doctype.project.project.update_project_sales_billing"
   ],
 	"monthly": [
 		"erpnext.accounts.doctype.sales_invoice.sales_invoice.booked_deferred_revenue",
@@ -274,7 +278,9 @@ regional_overrides = {
 		'erpnext.tests.test_regional.test_method': 'erpnext.regional.india.utils.test_method',
 		'erpnext.controllers.taxes_and_totals.get_itemised_tax_breakup_header': 'erpnext.regional.india.utils.get_itemised_tax_breakup_header',
 		'erpnext.controllers.taxes_and_totals.get_itemised_tax_breakup_data': 'erpnext.regional.india.utils.get_itemised_tax_breakup_data',
-		'erpnext.accounts.party.get_regional_address_details': 'erpnext.regional.india.utils.get_regional_address_details'
+		'erpnext.accounts.party.get_regional_address_details': 'erpnext.regional.india.utils.get_regional_address_details',
+		'erpnext.hr.utils.calculate_annual_eligible_hra_exemption': 'erpnext.regional.india.utils.calculate_annual_eligible_hra_exemption',
+		'erpnext.hr.utils.calculate_hra_exemption_for_period': 'erpnext.regional.india.utils.calculate_hra_exemption_for_period'
 	},
 	'United Arab Emirates': {
 		'erpnext.controllers.taxes_and_totals.update_itemised_tax_data': 'erpnext.regional.united_arab_emirates.utils.update_itemised_tax_data'

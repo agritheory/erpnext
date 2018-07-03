@@ -166,6 +166,7 @@ class calculate_taxes_and_totals(object):
 
 	def calculate_net_total(self):
 		self.doc.total_qty = self.doc.total = self.doc.base_total = self.doc.net_total = self.doc.base_net_total = 0.0
+
 		for item in self.doc.get("items"):
 			self.doc.total += item.amount
 			self.doc.total_qty += item.qty
@@ -174,6 +175,9 @@ class calculate_taxes_and_totals(object):
 			self.doc.base_net_total += item.base_net_amount
 
 		self.doc.round_floats_in(self.doc, ["total", "base_total", "net_total", "base_net_total"])
+
+		if self.doc.doctype == 'Sales Invoice' and self.doc.is_pos:
+			self.doc.pos_total_qty = self.doc.total_qty
 
 	def calculate_taxes(self):
 		self.doc.rounding_adjustment = 0
@@ -450,7 +454,7 @@ class calculate_taxes_and_totals(object):
 		if self.doc.doctype == "Sales Invoice":
 			self.calculate_paid_amount()
 
-		if self.doc.is_return: return
+		if self.doc.is_return and self.doc.return_against: return
 
 		self.doc.round_floats_in(self.doc, ["grand_total", "total_advance", "write_off_amount"])
 		self._set_in_company_currency(self.doc, ['write_off_amount'])
@@ -608,16 +612,19 @@ def get_itemised_tax(taxes):
 			for item_code, tax_data in item_tax_map.items():
 				itemised_tax.setdefault(item_code, frappe._dict())
 
+				tax_rate = 0.0
+				tax_amount = 0.0
+
 				if isinstance(tax_data, list):
-					itemised_tax[item_code][tax.description] = frappe._dict(dict(
-						tax_rate=flt(tax_data[0]),
-						tax_amount=flt(tax_data[1])
-					))
+					tax_rate = flt(tax_data[0])
+					tax_amount = flt(tax_data[1])
 				else:
-					itemised_tax[item_code][tax.description] = frappe._dict(dict(
-						tax_rate=flt(tax_data),
-						tax_amount=0.0
-					))
+					tax_rate = flt(tax_data)
+
+				itemised_tax[item_code][tax.description] = frappe._dict(dict(
+					tax_rate = tax_rate,
+					tax_amount = tax_amount
+				))
 
 	return itemised_tax
 

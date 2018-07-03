@@ -11,6 +11,9 @@ default_lead_sources = ["Existing Customer", "Reference", "Advertisement",
 	"Cold Calling", "Exhibition", "Supplier Reference", "Mass Mailing",
 	"Customer's Vendor", "Campaign", "Walk In"]
 
+default_sales_partner_type = ["Channel Partner", "Distributor", "Dealer", "Agent",
+	"Retailer", "Implementation Partner", "Reseller"]
+
 def install(country=None):
 	records = [
 		# domains
@@ -164,7 +167,6 @@ def install(country=None):
 		{'doctype': 'Activity Type', 'activity_type': _('Execution')},
 		{'doctype': 'Activity Type', 'activity_type': _('Communication')},
 
-		# Lead Source
 		{'doctype': "Item Attribute", "attribute_name": _("Size"), "item_attribute_values": [
 			{"attribute_value": _("Extra Small"), "abbr": "XS"},
 			{"attribute_value": _("Small"), "abbr": "S"},
@@ -180,6 +182,12 @@ def install(country=None):
 			{"attribute_value": _("Black"), "abbr": "BLA"},
 			{"attribute_value": _("White"), "abbr": "WHI"}
 		]},
+
+		#Job Applicant Source
+		{'doctype': 'Job Applicant Source', 'source_name': _('Website Listing')},
+		{'doctype': 'Job Applicant Source', 'source_name': _('Walk In')},
+		{'doctype': 'Job Applicant Source', 'source_name': _('Employee Referral')},
+		{'doctype': 'Job Applicant Source', 'source_name': _('Campaign')},
 
 		{'doctype': "Email Account", "email_id": "sales@example.com", "append_to": "Opportunity"},
 		{'doctype': "Email Account", "email_id": "support@example.com", "append_to": "Issue"},
@@ -232,6 +240,8 @@ def install(country=None):
 	records += [{"doctype":"Industry Type", "industry": d} for d in get_industry_types()]
 	# records += [{"doctype":"Operation", "operation": d} for d in get_operations()]
 	records += [{'doctype': 'Lead Source', 'source_name': _(d)} for d in default_lead_sources]
+
+	records += [{'doctype': 'Sales Partner Type', 'sales_partner_type': _(d)} for d in default_sales_partner_type]
 
 	base_path = frappe.get_app_path("erpnext", "hr", "doctype")
 	response = frappe.read_file(os.path.join(base_path, "leave_application/leave_application_email_template.html"))

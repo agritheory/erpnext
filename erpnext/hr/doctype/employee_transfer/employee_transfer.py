@@ -13,8 +13,6 @@ class EmployeeTransfer(Document):
 	def validate(self):
 		if frappe.get_value("Employee", self.employee, "status") == "Left":
 			frappe.throw(_("Cannot transfer Employee with status Left"))
-		if self.new_company and self.company == self.new_company:
-			frappe.throw(_("New Company must be different from current company"))
 
 	def before_submit(self):
 		if getdate(self.transfer_date) > getdate():
@@ -27,8 +25,10 @@ class EmployeeTransfer(Document):
 			new_employee = frappe.copy_doc(employee)
 			new_employee.name = None
 			new_employee.employee_number = None
-			new_employee = update_employee(new_employee, self.transfer_details)
-			if self.new_company:
+			new_employee = update_employee(new_employee, self.transfer_details, date=self.transfer_date)
+			if self.new_company and self.company != self.new_company:
+				new_employee.internal_work_history = []
+				new_employee.date_of_joining = self.transfer_date
 				new_employee.company = self.new_company
 			#move user_id to new employee before insert
 			if employee.user_id and not self.validate_user_in_details():
@@ -40,9 +40,10 @@ class EmployeeTransfer(Document):
 			employee.db_set("relieving_date", self.transfer_date)
 			employee.db_set("status", "Left")
 		else:
-			employee = update_employee(employee, self.transfer_details)
-			if self.new_company:
+			employee = update_employee(employee, self.transfer_details, date=self.transfer_date)
+			if self.new_company and self.company != self.new_company:
 				employee.company = self.new_company
+				employee.date_of_joining = self.transfer_date
 			employee.save()
 
 	def on_cancel(self):
@@ -54,10 +55,11 @@ class EmployeeTransfer(Document):
 			#mark the employee as active
 			employee.status = "Active"
 			employee.relieving_date = ''
-			employee.save()
 		else:
-			employee = update_employee(employee, self.transfer_details, True)
-			employee.save()
+			employee = update_employee(employee, self.transfer_details, cancel=True)
+		if self.new_company != self.company:
+			employee.company = self.company
+		employee.save()
 
 	def validate_user_in_details(self):
 		for item in self.transfer_details:

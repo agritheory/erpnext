@@ -59,18 +59,19 @@ erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
 			}
 		}
 
-		if(!doc.is_return && doc.docstatus==1) {
-			if(doc.outstanding_amount != 0) {
-				this.frm.add_custom_button(__('Payment'), this.make_payment_entry, __("Make"));
-				cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
-			}
+		if(doc.docstatus == 1 && doc.outstanding_amount != 0
+			&& !(doc.is_return && doc.return_against)) {
+			this.frm.add_custom_button(__('Payment'), this.make_payment_entry, __("Make"));
+			cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
+		}
 
+		if(!doc.is_return && doc.docstatus==1) {
 			if(doc.outstanding_amount >= 0 || Math.abs(flt(doc.outstanding_amount)) < flt(doc.grand_total)) {
 				cur_frm.add_custom_button(__('Return / Debit Note'),
 					this.make_debit_note, __("Make"));
 			}
 
-			if(!doc.subscription) {
+			if(!doc.auto_repeat) {
 				cur_frm.add_custom_button(__('Subscription'), function() {
 					erpnext.utils.make_subscription(doc.doctype, doc.name)
 				}, __("Make"))

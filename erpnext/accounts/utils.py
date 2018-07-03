@@ -2,7 +2,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 
-
+from __future__ import unicode_literals
 
 import frappe, erpnext
 import frappe.defaults
@@ -805,11 +805,28 @@ def validate_field_number(doctype_name, name, field_value, company, field_name):
 
 def get_doc_name_autoname(field_value, doc_title, name, company):
 	''' append title with prefix as number and suffix as company's abbreviation separated by '-' '''
-	if company:
+	if name:
 		name_split=name.split("-")
 		parts = [doc_title.strip(), name_split[len(name_split)-1].strip()]
 	else:
-		parts = [doc_title.strip()]
+		abbr = frappe.db.get_value("Company", company, ["abbr"], as_dict=True)
+		parts = [doc_title.strip(), abbr.abbr]
 	if cstr(field_value).strip():
 		parts.insert(0, cstr(field_value).strip())
 	return ' - '.join(parts)
+
+@frappe.whitelist()
+def get_coa(doctype, parent, is_root, chart=None):
+	from erpnext.accounts.doctype.account.chart_of_accounts.chart_of_accounts import build_tree_from_json
+
+	# add chart to flags to retrieve when called from expand all function
+	chart = chart if chart else frappe.flags.chart
+	frappe.flags.chart = chart
+
+	parent = None if parent==_('All Accounts') else parent
+	accounts = build_tree_from_json(chart) # returns alist of dict in a tree render-able form
+
+	# filter out to show data for the selected node only
+	accounts = [d for d in accounts if d['parent_account']==parent]
+
+	return accounts

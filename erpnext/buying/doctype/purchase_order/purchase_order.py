@@ -219,6 +219,9 @@ class PurchaseOrder(BuyingController):
 		frappe.get_doc('Authorization Control').validate_approving_authority(self.doctype,
 			self.company, self.base_grand_total)
 
+		self.update_blanket_order()
+
+
 	def on_cancel(self):
 		super(PurchaseOrder, self).on_cancel()
 
@@ -240,6 +243,9 @@ class PurchaseOrder(BuyingController):
 		# Must be called after updating ordered qty in Material Request
 		self.update_requested_qty()
 		self.update_ordered_qty()
+
+		self.update_blanket_order()
+
 
 	def on_update(self):
 		pass
@@ -317,6 +323,7 @@ def close_or_unclose_purchase_orders(names, status):
 			else:
 				if po.status == "Closed":
 					po.update_status("Draft")
+			po.update_blanket_order()
 
 	frappe.local.message_log = []
 

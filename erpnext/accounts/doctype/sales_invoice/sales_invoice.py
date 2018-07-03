@@ -147,8 +147,9 @@ class SalesInvoice(SellingController):
 
 		self.update_time_sheet(self.name)
 
-		update_company_current_month_sales(self.company)
-		self.update_project()
+		if frappe.db.get_single_value('Selling Settings', 'sales_update_frequency') == "Each Transaction":
+			update_company_current_month_sales(self.company)
+			self.update_project()
 		update_linked_invoice(self.doctype, self.name, self.inter_company_invoice_reference)
 
 	def validate_pos_paid_amount(self):
@@ -187,8 +188,9 @@ class SalesInvoice(SellingController):
 		self.make_gl_entries_on_cancel()
 		frappe.db.set(self, 'status', 'Cancelled')
 
-		update_company_current_month_sales(self.company)
-		self.update_project()
+		if frappe.db.get_single_value('Selling Settings', 'sales_update_frequency') == "Each Transaction":
+			update_company_current_month_sales(self.company)
+			self.update_project()
 
 		unlink_inter_company_invoice(self.doctype, self.name, self.inter_company_invoice_reference)
 
@@ -613,7 +615,7 @@ class SalesInvoice(SellingController):
 			if update_outstanding == "No":
 				from erpnext.accounts.doctype.gl_entry.gl_entry import update_outstanding_amt
 				update_outstanding_amt(self.debit_to, "Customer", self.customer,
-					self.doctype, self.return_against if cint(self.is_return) else self.name)
+					self.doctype, self.return_against if cint(self.is_return) and self.return_against else self.name)
 
 			if repost_future_gle and cint(self.update_stock) \
 				and cint(auto_accounting_for_stock):
@@ -662,7 +664,7 @@ class SalesInvoice(SellingController):
 					"debit": grand_total_in_company_currency,
 					"debit_in_account_currency": grand_total_in_company_currency \
 						if self.party_account_currency==self.company_currency else grand_total,
-					"against_voucher": self.return_against if cint(self.is_return) else self.name,
+					"against_voucher": self.return_against if cint(self.is_return) and self.return_against else self.name,
 					"against_voucher_type": self.doctype
 				}, self.party_account_currency)
 			)
@@ -729,7 +731,7 @@ class SalesInvoice(SellingController):
 							"credit_in_account_currency": payment_mode.base_amount \
 								if self.party_account_currency==self.company_currency \
 								else payment_mode.amount,
-							"against_voucher": self.return_against if cint(self.is_return) else self.name,
+							"against_voucher": self.return_against if cint(self.is_return) and self.return_against else self.name,
 							"against_voucher_type": self.doctype,
 						}, self.party_account_currency)
 					)
@@ -758,7 +760,7 @@ class SalesInvoice(SellingController):
 						"debit": flt(self.base_change_amount),
 						"debit_in_account_currency": flt(self.base_change_amount) \
 							if self.party_account_currency==self.company_currency else flt(self.change_amount),
-						"against_voucher": self.return_against if cint(self.is_return) else self.name,
+						"against_voucher": self.return_against if cint(self.is_return) and self.return_against else self.name,
 						"against_voucher_type": self.doctype
 					}, self.party_account_currency)
 				)
@@ -788,7 +790,7 @@ class SalesInvoice(SellingController):
 					"credit": self.base_write_off_amount,
 					"credit_in_account_currency": self.base_write_off_amount \
 						if self.party_account_currency==self.company_currency else self.write_off_amount,
-					"against_voucher": self.return_against if cint(self.is_return) else self.name,
+					"against_voucher": self.return_against if cint(self.is_return) and self.return_against else self.name,
 					"against_voucher_type": self.doctype
 				}, self.party_account_currency)
 			)
@@ -990,6 +992,7 @@ def booked_deferred_revenue():
 	# check for the sales invoice for which GL entries has to be done
 	invoices = frappe.db.sql_list('''
 		select parent from `tabSales Invoice Item` where service_start_date<=%s and service_end_date>=%s
+		and enable_deferred_revenue = 1 and docstatus = 1
 	''', (today(), add_months(today(), -1)))
 
 	# ToDo also find the list on the basic of the GL entry, and make another list
