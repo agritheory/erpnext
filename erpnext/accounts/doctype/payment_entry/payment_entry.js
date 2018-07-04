@@ -848,34 +848,39 @@ frappe.ui.form.on("Payment Entry Reference", {
 		frm.events.validate_reference_document(frm, row);
 	},
 	reference_name: function(frm, cdt, cdn) {
-		var row = locals[cdt][cdn];
-		return frappe.call({
-			method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_reference_details",
-			args: {
-				reference_doctype: row.reference_doctype,
-				reference_name: row.reference_name,
-				party_account_currency: frm.doc.payment_type=="Receive" ?
-					frm.doc.paid_from_account_currency : frm.doc.paid_to_account_currency
-			},
-			callback: function(r, rt) {
-				if(r.message) {
-					$.each(r.message, function(field, value) {
-						frappe.model.set_value(cdt, cdn, field, value);
-					})
-
-					let allocated_amount = frm.doc.unallocated_amount > row.outstanding_amount ?
-						row.outstanding_amount : frm.doc.unallocated_amount;
-
-					frappe.model.set_value(cdt, cdn, 'allocated_amount', allocated_amount);
-					frm.refresh_fields();
-				}
-			}
-		})
+		get_reference_details(frm);
 	}
 });
 
+function get_reference_details(frm){
+	var row = locals[cdt][cdn];
+	return frappe.call({
+		method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_reference_details",
+		args: {
+			reference_doctype: row.reference_doctype,
+			reference_name: row.reference_name,
+			party_account_currency: frm.doc.payment_type=="Receive" ?
+				frm.doc.paid_from_account_currency : frm.doc.paid_to_account_currency
+		}
+	}).done((r) => {
+		if(r.message) {
+			$.each(r.message, function(field, value) {
+				frappe.model.set_value(cdt, cdn, field, value);
+			})
+
+			let allocated_amount = frm.doc.unallocated_amount > row.outstanding_amount ?
+				row.outstanding_amount : frm.doc.unallocated_amount;
+
+			frappe.model.set_value(cdt, cdn, 'allocated_amount', allocated_amount);
+			frm.refresh_fields();
+		}
+	}).fail((f) => {
+		console.log("Failed on get_reference_details", f);
+	});
+}
+
 function set_paid_invoices(frm){
-	let refs = [];
+;	let refs = [];
 	let discounts = [];
 	let discount_double_check = [];
 	// build local list of reference documents by document name
@@ -903,7 +908,7 @@ function set_paid_invoices(frm){
 		}
 	}
 	if(discount_double_check.length > 0){
-		function call_set_invoices(frm, discount_double_check)
+		call_set_invoices(frm, discount_double_check);
 	}
 }
 
@@ -911,9 +916,7 @@ function call_set_invoices(frm, discount_double_check){
 	frappe.call({
 		method: "erpnext.accounts.doctype.payment_entry.payment_entry.set_paid_invoices",
 		args: {"discount_double_check": discount_double_check},
-	}).done((r) => {
-		frappe.notify("")
-		console.log("Invoices updated with discounted amount")
+	}).done(() => {
 	}).fail((f) => {
 		console.log("Failed on set_paid_invoices", f);
 	});
@@ -947,14 +950,12 @@ function get_eligible_discount(frm){
 				});
 		}
 	}
-
 	if(discount_double_check.length > 0){
-		serve_eligible_discount(frm, discount_double_check);
+		serve_eligible_discount(frm, discounts, discount_double_check);
 	}
 }
 
-function serve_eligible_discount(frm, discount_double_check){
-	{
+function serve_eligible_discount(frm, discounts, discount_double_check){
 		frappe.call({
 			method: "erpnext.accounts.doctype.payment_entry.payment_entry.calc_discount",
 			args: {"discount_double_check": discount_double_check},
@@ -965,7 +966,6 @@ function serve_eligible_discount(frm, discount_double_check){
 			}
 			if(r.message != undefined){ // add rows to deductions
 				for(let j in r.message){
-					console.log(r.message);
 					// checks to see if discount is already present
 					if(discounts.indexOf(r.message[j].reference_document) < 0) {
 						discounts.push(r.message[j].reference_document);
@@ -986,5 +986,4 @@ function serve_eligible_discount(frm, discount_double_check){
 		}).fail((f) => {
 			console.log("Failed on calc_discount", f);
 		});
-	}
 }

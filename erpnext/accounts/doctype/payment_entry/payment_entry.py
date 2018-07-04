@@ -896,7 +896,7 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 
 
 def get_paid_amount(dt, dn, party_type, party, account, due_date):
-	if party_type=="Customer":
+	if party_type == "Customer":
 		dr_or_cr = "credit_in_account_currency - debit_in_account_currency"
 	else:
 		dr_or_cr = "debit_in_account_currency - credit_in_account_currency"
@@ -918,6 +918,17 @@ def get_paid_amount(dt, dn, party_type, party, account, due_date):
 
 @frappe.whitelist
 def set_paid_invoices(transactions):
+	frappe.throw("set INvoices")
+	for item in transactions:
+		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "outstanding_amount", 0)
+		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "Status", "Paid")
+		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "discount_amount", item["amount"])
+	frappe.db.commit()
+
+
+# QUESTION: this code should merged with update_invoice_status in the accounts controller
+@frappe.whitelist
+def cancel_discounted_invoices(transactions):
 	for item in transactions:
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "outstanding_amount", 0)
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "Status", "Paid")
@@ -927,7 +938,7 @@ def set_paid_invoices(transactions):
 
 @frappe.whitelist()
 def calc_discount(discount_double_check):
-	"""  list of dictionaries, Schema
+	"""  list of dictionaries; schema:
 		[{"reference_name": frm.doc.references[i].reference_name,
 		"reference_doctype": frm.doc.references[i].reference_doctype,
 		"posting_date": frm.doc.posting_date,
@@ -963,5 +974,4 @@ def calc_discount(discount_double_check):
 							"discount_eligible_percent": pt.discount_percent,
 							"discount_date": add_days(doc[date], pt.discount_eligible_days)
 						})
-						print("deductions in loop", deductions)
 	return deductions
