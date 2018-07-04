@@ -926,7 +926,7 @@ def set_paid_invoices(transactions):
 	frappe.db.commit()
 
 
-# QUESTION: this code should merged with update_invoice_status in the accounts controller
+# QUESTION: this code should merged with update_invoice_status in the accounts controller?
 @frappe.whitelist
 def cancel_discounted_invoices(transactions):
 	for item in transactions:
