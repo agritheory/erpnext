@@ -15,6 +15,7 @@ class PaymentTermsTemplate(Document):
 		self.validate_invoice_portion()
 		self.validate_credit_days()
 		self.check_duplicate_terms()
+		self.validate_discount_terms()
 
 	def validate_invoice_portion(self):
 		total_portion = 0
@@ -40,3 +41,14 @@ class PaymentTermsTemplate(Document):
 				)
 			else:
 				terms.append(term_info)
+
+	def validate_discount_terms(self):
+		for term in self.terms:
+			if term["discount_eligible_days"] > term["credit_days"]:
+				frappe.throw(_("Discount Days must be less than Credit Days."))
+			elif term["discount_percent"] < 0:
+				frappe.throw(_("Please enter the discount as a positive number."))
+			elif term["discount_percent"] == 0:
+				term["discount_eligible_days"] = 0
+			elif term["discount_eligible_days"] == 0:
+				term["discount_percent"] = 0

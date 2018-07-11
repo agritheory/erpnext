@@ -937,7 +937,7 @@ def cancel_discounted_invoices(transactions):
 
 
 @frappe.whitelist()
-def calc_discount(discount_double_check):
+def calc_discount(eligible_discounts, company):
 	"""  list of dictionaries; schema:
 		[{"reference_name": frm.doc.references[i].reference_name,
 		"reference_doctype": frm.doc.references[i].reference_doctype,
@@ -946,32 +946,34 @@ def calc_discount(discount_double_check):
 		},{... ]
 	"""
 	deductions = []
-	if isinstance(discount_double_check, basestring):
-		discount_double_check = json.loads(discount_double_check)
-	for i in discount_double_check:
-		discount_account = frappe.db.get_value("Company", i["company"], "default_sales_discount_account")
-		default_cost_center = frappe.db.get_value("Company", i["company"], "cost_center")
-		if i["reference_doctype"] in ["Sales Invoice", "Purchase Invoice"]:
+	discount_account = frappe.db.get_value("Company", company, "default_sales_discount_account")
+	default_cost_center = frappe.db.get_value("Company", company, "cost_center")
+	eligible_discounts = json.loads(eligible_discounts) if isinstance(eligible_discounts, basestring) else eligible_discounts
+	for discount in eligible_discounts:
+		if discount["reference_doctype"] in ["Sales Invoice", "Purchase Invoice"]:
 			date = "posting_date"
 		else:  # Sales Order and Purchase Order
 			date = "transaction_date"
-		doc = frappe.get_value(i["reference_doctype"], i["reference_name"], [date,
+		doc = frappe.get_value(discount["reference_doctype"], discount["reference_name"], [date,
 				"payment_terms_template", "grand_total", "apply_discount_on", "net_total"], as_dict=True)
 		if doc["payment_terms_template"]:
 			ptt = frappe.get_doc("Payment Terms Template", doc["payment_terms_template"])
 			for pt in ptt.terms:
 				if pt.discount_percent or pt.discount_eligible_days:
-					if(date_diff(i["posting_date"], add_days(doc[date], pt.discount_eligible_days)) <= 0):
+					if(date_diff(discount["posting_date"], add_days(doc[date], pt.discount_eligible_days)) <= 0):
 						if doc["apply_discount_on"] == "Grand Total":
-							discount = doc["grand_total"] * (pt.discount_percent / 100)
+							discount_amount = doc["grand_total"] * (pt.discount_percent / 100)
 						else:
-							discount = doc["net_total"] * (pt.discount_percent / 100)
+							discount_amount = doc["net_total"] * (pt.discount_percent / 100)
 
 						deductions.append({"account": discount_account,
 							"cost_center": default_cost_center,
-							"amount": discount,
-							"reference_document": i["reference_name"],
+							"amount": discount_amount,
+							"reference_document": discount["reference_name"],
 							"discount_eligible_percent": pt.discount_percent,
 							"discount_date": add_days(doc[date], pt.discount_eligible_days)
 						})
+	print(deductions)
 	return deductions
+
+	# def
