@@ -13,7 +13,7 @@ from erpnext.setup.utils import get_exchange_rate
 from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.hr.doctype.expense_claim.expense_claim import update_reimbursed_amount
 from erpnext.controllers.accounts_controller import AccountsController, get_supplier_block_status
-from frappe.utils.data import add_days, date_diff
+from frappe.utils.data import add_days, date_diff, unique
 
 from six import string_types, iteritems
 
@@ -894,7 +894,7 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 		pe.set_amounts()
 	return pe
 
-
+@frappe.whitelist()
 def get_paid_amount(dt, dn, party_type, party, account, due_date):
 	if party_type == "Customer":
 		dr_or_cr = "credit_in_account_currency - debit_in_account_currency"
@@ -915,10 +915,49 @@ def get_paid_amount(dt, dn, party_type, party, account, due_date):
 
 	return paid_amount[0][0] if paid_amount else 0
 
+"""
+returns a list of eligible deductions in the format expected by frm.doc.deductions
+"""
+@frappe.whitelist()
+def get_eligible_discount(refs, deductions, company, posting_date):
+	discount_account = frappe.db.get_value("Company", company, "default_sales_discount_account")
+	default_cost_center = frappe.db.get_value("Company", company, "cost_center")
+	refs = json.loads(refs) if isinstance(refs, basestring) else list(refs)
+	deductions = json.loads(deductions) if isinstance(refs, basestring) else list(deductions)
+	return filter(lambda x: x is not None, [check_eligible_discount(ref, deductions,
+		discount_account, default_cost_center, posting_date) for ref in refs])
 
-@frappe.whitelist
+
+@frappe.whitelist()
+def check_eligible_discount(ref, deductions, discount_account, default_cost_center, posting_date):
+	date, doc, ptt = get_ref(ref["reference_doctype"], ref["reference_name"])
+	for term in ptt.terms:
+		if(date_diff(posting_date, add_days(doc[date], term.discount_eligible_days)) <= 0):
+			discount_amount = doc["grand_total"] * (term.discount_percent / 100) if doc["apply_discount_on"] == "Grand Total" \
+				else doc["net_total"] * (term.discount_percent / 100)
+			return {"account": discount_account,
+					"cost_center": default_cost_center,
+					"amount": discount_amount,
+					"reference_document": ref["reference_name"],
+					"discount_eligible_percent": term.discount_percent,
+					"discount_date": add_days(doc[date], term.discount_eligible_days)}
+
+@frappe.whitelist()
+def get_ref(ref_doctype, ref_doc):
+	date = "posting_date" if ref_doctype in ["Sales Invoice", "Purchase Invoice", "Journal Entry"] else "transaction_date"
+	if ref_doctype is not "Journal Entry":
+		doc = frappe.get_value(ref_doctype, ref_doc, [date, "payment_terms_template", "grand_total",
+			"apply_discount_on", "net_total"], as_dict=True)
+	else:
+		je = frappe.get_value(ref_doctype, ref_doc, [date, "payment_terms_template", "total_debit"], as_dict=True)
+		doc["grand_total"] = je["total_debit"]
+		doc["net_total"] = je["total_debit"]
+		doc["apply_discount_on"] = "Grand Total"
+	return date, doc, frappe.get_doc("Payment Terms Template", doc["payment_terms_template"])
+
+
+@frappe.whitelist()
 def set_paid_invoices(transactions):
-	frappe.throw("set INvoices")
 	for item in transactions:
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "outstanding_amount", 0)
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "Status", "Paid")
@@ -927,53 +966,10 @@ def set_paid_invoices(transactions):
 
 
 # QUESTION: this code should merged with update_invoice_status in the accounts controller?
-@frappe.whitelist
+@frappe.whitelist()
 def cancel_discounted_invoices(transactions):
 	for item in transactions:
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "outstanding_amount", 0)
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "Status", "Paid")
 		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "discount_amount", item["amount"])
 	frappe.db.commit()
-
-
-@frappe.whitelist()
-def calc_discount(eligible_discounts, company):
-	"""  list of dictionaries; schema:
-		[{"reference_name": frm.doc.references[i].reference_name,
-		"reference_doctype": frm.doc.references[i].reference_doctype,
-		"posting_date": frm.doc.posting_date,
-		"company": frm.doc.company
-		},{... ]
-	"""
-	deductions = []
-	discount_account = frappe.db.get_value("Company", company, "default_sales_discount_account")
-	default_cost_center = frappe.db.get_value("Company", company, "cost_center")
-	eligible_discounts = json.loads(eligible_discounts) if isinstance(eligible_discounts, basestring) else eligible_discounts
-	for discount in eligible_discounts:
-		if discount["reference_doctype"] in ["Sales Invoice", "Purchase Invoice"]:
-			date = "posting_date"
-		else:  # Sales Order and Purchase Order
-			date = "transaction_date"
-		doc = frappe.get_value(discount["reference_doctype"], discount["reference_name"], [date,
-				"payment_terms_template", "grand_total", "apply_discount_on", "net_total"], as_dict=True)
-		if doc["payment_terms_template"]:
-			ptt = frappe.get_doc("Payment Terms Template", doc["payment_terms_template"])
-			for pt in ptt.terms:
-				if pt.discount_percent or pt.discount_eligible_days:
-					if(date_diff(discount["posting_date"], add_days(doc[date], pt.discount_eligible_days)) <= 0):
-						if doc["apply_discount_on"] == "Grand Total":
-							discount_amount = doc["grand_total"] * (pt.discount_percent / 100)
-						else:
-							discount_amount = doc["net_total"] * (pt.discount_percent / 100)
-
-						deductions.append({"account": discount_account,
-							"cost_center": default_cost_center,
-							"amount": discount_amount,
-							"reference_document": discount["reference_name"],
-							"discount_eligible_percent": pt.discount_percent,
-							"discount_date": add_days(doc[date], pt.discount_eligible_days)
-						})
-	print(deductions)
-	return deductions
-
-	# def
