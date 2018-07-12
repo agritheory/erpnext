@@ -39,17 +39,11 @@ def get_data():
 					"description": _("To make recurring documents")
 				},
 				{
-					"type": "report",
-					"name": "Accounts Receivable",
-					"doctype": "Sales Invoice",
-					"is_query_report": True
-				},
-				{
-					"type": "report",
-					"name": "Accounts Payable",
-					"doctype": "Purchase Invoice",
-					"is_query_report": True
-				},
+					"type": "doctype",
+					"name": "Indirect Expense",
+					"label": _("Indirect Expense"),
+					"description": _("Book a non-inventory expense")
+				}
 			]
 
 		},
@@ -76,7 +70,7 @@ def get_data():
 				},
 				{
 					"type": "report",
-					"name":"General Ledger",
+					"name": "General Ledger",
 					"doctype": "GL Entry",
 					"is_query_report": True,
 				},
@@ -132,6 +126,18 @@ def get_data():
 					"type": "report",
 					"name": "Consolidated Financial Statement",
 					"doctype": "GL Entry",
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Accounts Receivable",
+					"doctype": "Sales Invoice",
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Accounts Payable",
+					"doctype": "Purchase Invoice",
 					"is_query_report": True
 				},
 			]
