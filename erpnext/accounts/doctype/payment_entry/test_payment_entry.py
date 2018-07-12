@@ -334,7 +334,7 @@ class TestPaymentEntry(unittest.TestCase):
 			order by account asc""", voucher_no, as_dict=1)
 
 	def test_payment_entry_write_off_difference(self):
-		si =  create_sales_invoice()
+		si = create_sales_invoice()
 		pe = get_payment_entry("Sales Invoice", si.name, bank_account="_Test Cash - _TC")
 		pe.reference_no = "1"
 		pe.reference_date = "2016-01-01"
@@ -365,7 +365,7 @@ class TestPaymentEntry(unittest.TestCase):
 		self.validate_gl_entries(pe.name, expected_gle)
 
 	def test_payment_entry_exchange_gain_loss(self):
-		si =  create_sales_invoice(customer="_Test Customer USD", debit_to="_Test Receivable USD - _TC",
+		si = create_sales_invoice(customer="_Test Customer USD", debit_to="_Test Receivable USD - _TC",
 			currency="USD", conversion_rate=50)
 		pe = get_payment_entry("Sales Invoice", si.name, bank_account="_Test Bank USD - _TC")
 		pe.reference_no = "1"
@@ -394,3 +394,7 @@ class TestPaymentEntry(unittest.TestCase):
 
 		outstanding_amount = flt(frappe.db.get_value("Sales Invoice", si.name, "outstanding_amount"))
 		self.assertEqual(outstanding_amount, 0)
+
+	def test_payment_terms_discount(self):
+		pass
+		# get payment terms template
