@@ -518,7 +518,9 @@ class BuyingController(StockController):
 				args = data.as_dict()
 				args.update({
 					'doctype': self.doctype,
-					'company': self.company
+					'company': self.company,
+					'posting_date': (self.schedule_date
+						if self.doctype == 'Material Request' else self.transaction_date)
 				})
 
 				validate_expense_against_budget(args)
@@ -578,7 +580,6 @@ class BuyingController(StockController):
 			'doctype': 'Asset',
 			'item_code': row.item_code,
 			'asset_name': row.item_name,
-			'status': 'Receipt',
 			'naming_series': item_data.get('asset_naming_series') or 'AST',
 			'asset_category': item_data.get('asset_category'),
 			'location': row.asset_location,
@@ -664,6 +665,7 @@ class BuyingController(StockController):
 
 	def validate_items(self):
 		# validate items to see if they have is_purchase_item or is_subcontracted_item enabled
+		if self.doctype=="Material Request": return
 
 		if hasattr(self, "is_subcontracted") and self.is_subcontracted == 'Yes':
 			validate_item_type(self, "is_sub_contracted_item", "subcontracted")
@@ -697,7 +699,7 @@ def get_subcontracted_raw_materials_from_se(purchase_orders):
 		from `tabStock Entry` se,`tabStock Entry Detail` sed
 		where
 			se.name = sed.parent and se.docstatus=1 and se.purpose='Subcontract'
-			and se.purchase_order= (%s) and ifnull(sed.t_warehouse, '') != ''
+			and se.purchase_order in (%s) and ifnull(sed.t_warehouse, '') != ''
 		group by sed.item_code, sed.t_warehouse
 	""" % (','.join(['%s'] * len(purchase_orders))), tuple(purchase_orders), as_dict=1)
 
@@ -707,7 +709,7 @@ def get_backflushed_subcontracted_raw_materials_from_se(purchase_orders, purchas
 			prsi.rm_item_code as item_code, sum(prsi.consumed_qty) as qty
 		from `tabPurchase Receipt` pr, `tabPurchase Receipt Item` pri, `tabPurchase Receipt Item Supplied` prsi
 		where
-			pr.name = pri.parent and pr.name = prsi.parent and pri.purchase_order= (%s)
+			pr.name = pri.parent and pr.name = prsi.parent and pri.purchase_order in (%s)
 			and pri.item_code = prsi.main_item_code and pr.name != '%s'
 		group by prsi.rm_item_code
 	""" % (','.join(['%s'] * len(purchase_orders)), purchase_receipt), tuple(purchase_orders)))
