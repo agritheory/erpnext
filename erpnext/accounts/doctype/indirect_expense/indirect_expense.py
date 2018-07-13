@@ -5,35 +5,37 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.model.document import Document
-from frappe.model.naming import make_autoname
 from erpnext.accounts import party
-from frappe.utils.data import formatdate, nowdate
+from frappe.utils.data import nowdate
+from frappe.utils import cint, flt, round_based_on_smallest_currency_fraction
 from frappe.model.mapper import get_mapped_doc
+from erpnext import get_company_currency
+# import accounts controller?
 from erpnext.accounts.general_ledger import make_gl_entries, merge_similar_entries, delete_gl_entries
+from erpnext.accounts.doctype.gl_entry.gl_entry import update_outstanding_amt
+from erpnext.accounts.general_ledger import get_round_off_account_and_cost_center
+from erpnext.setup.utils import get_exchange_rate
 
 """
 from erpnext.controllers.buying_controller import BuyingController
 from erpnext.accounts.utils import get_account_currency, get_fiscal_year
 from erpnext.accounts.general_ledger import make_gl_entries, merge_similar_entries, delete_gl_entries
-from erpnext.accounts.doctype.gl_entry.gl_entry import update_outstanding_amt
-from erpnext.accounts.general_ledger import get_round_off_account_and_cost_center
 """
 
 
 class IndirectExpense(Document):
-	def autoname(self):
-		prefix = "IE-" + self.invoice_date + "-" + self.party
-		self.name = make_autoname(prefix + '-.###')
-
 	def get_payment_terms(self):
 		return frappe.db.get_value(self.party_type, self.party, "payment_terms")
 
 	def validate(self):
-		self.validate_invoice_number_and_amount()
+		self.check_invoice_number_and_amount()
+		# self.currency_conversion()
+		#
 
 	def get_due_date(self):
-		return party.get_due_date_from_template(self.payment_terms, self.posting_date, self.invoice_date)
+		return party.get_due_date_from_template(self.payment_terms_template, self.posting_date, self.invoice_date)
 
 	def get_default_payables_account(self):
 		if self.company:
@@ -42,7 +44,31 @@ class IndirectExpense(Document):
 			frappe.throw("Please set company before payables account.")
 
 	def before_submit(self):
-		self.linked_journal_entry = self.make_journal_entry()
+		pass
+
+	def currency_conversion(self):
+		currencies = map(lambda x: x.invoice_currency if not self.company_currency else x.invoice_currency, self.entries)
+		conversion_rate = map(lambda x: x.conversion_rate if not self.company_currency else x.conversion_rate, self.entries)
+		if len(set(currencies)) > 1:
+			frappe.throw(_("Only one Invoice Currency may be used per transaction"))
+		elif len(set(conversion_rate)) > 1:
+			frappe.throw(_("Currency Conversion rates are not consistient between accounts"))
+		if self.check_conversion_rate(conversion_rate):
+			round_off_account, round_off_cost_center = get_round_off_account_and_cost_center(self.company)
+			self.rounding_adjustment = flt(self.total_due * conversion_rate, self.precision("total_due"))
+			self.append("entries", {"account": round_off_account,
+				"cost_center": round_off_cost_center,
+				"amount": round_based_on_smallest_currency_fraction(self.rounding_adjustment, self.company_currency, self.precision("total_due")),
+				"currency": self.company_currency})
+
+	def check_conversion_rate(self, conversion_rate):
+		default_currency = get_company_currency(self.company)
+		if not default_currency:
+			frappe.throw(_('Please enter default currency in Company Master'))
+		elif (self.company_currency == default_currency and flt(conversion_rate) != 1.00) or not conversion_rate or (self.company_currency != default_currency and flt(conversion_rate) == 1.00):
+				frappe.throw(_("Conversion rate cannot be 0 or 1"))
+		else:
+			return True
 
 	def on_cancel(self):
 		doc = frappe.get_doc("Journal Entry", self.linked_journal_entry)
@@ -50,100 +76,55 @@ class IndirectExpense(Document):
 		doc.delete()
 		self.linked_journal_entry = ""
 
-	def make_journal_entry(self):
-		doc = frappe.new_doc("Journal Entry")
-		doc.voucher_type = "Indirect Expense"
-		doc.posting_date = self.invoice_date or nowdate()
-		doc.payment_terms_template = self.payment_terms_template or ""
-		doc.due_date = self.due_date or nowdate()
-		doc.party = self.party
-		doc.naming_series = "IE-"
-		if self.company is not None:
-			doc.company = self.company
-		else:
-			doc.company = frappe.db.get_value("Global Defaults", None, "default_company")
-		doc.append("accounts", {
-			"account": self.accounts_payable_account,
-			"credit_in_account_currency": self.amount_due,
-			"debit_in_account_currency": "0.00",
-			"party_type": self.party_type,
-			"party": self.party,
-			"is_advance": "No"
-		})
-		for i, e in enumerate(self.entries):
-			doc.append("accounts", {
-				"account": e.account,
-				"cost_center": e.cost_center,
-				"project": e.project if e.project is not None else self.project,
-				"debit_in_account_currency": e.amount,
-				"credit_in_account_currency": "0.00",
-				"party_type": self.party_type,
-				"party": self.party
-			})
-		doc.cheque_no = self.party + " Indirect Expense - " + self.invoice_date + " - " + str(self.amount_due)
-		doc.cheque_date = self.invoice_date
-		doc.save()
-		doc.submit()
-		return doc.name
-
-	def validate_invoice_number_and_amount(self):  # TODO: add purchase invoice to lookup
+	def check_invoice_number_and_amount(self):
 		matching_invoices = frappe.db.sql(
-			"""select name from `tabIndirect Expense`
+			"""select name from `tabIndirect Expense` as t1
 				where ref_number like %(invoice_no)s
 				and party like %(party)s
 				and docstatus = 1""",
 			{"invoice_no": self.ref_number, "party": self.party}, as_dict=True)
+		matching_pis = frappe.db.sql(
+			"""select name from `tabPurchase Invoice` as t1
+				where bill_no like %(invoice_no)s
+				and supplier like %(party)s
+				and docstatus = 1""",
+			{"invoice_no": self.ref_number, "party": self.party}, as_dict=True)
 		matches = ""
-		for i in matching_invoices:
+		for i in (matching_invoices + matching_pis):
 			matches += str(matching_invoices[0].name) + " "
 		if matching_invoices:
 			frappe.msgprint("This entry might be duplicate based on the Invoice Number and Party: " +
-				matches,
-				"Warning Duplicate Entry", indicator="orange")
+				matches, "Warning Duplicate Entry", indicator="orange")
 
 ################################################################################
 	def make_gl_entries(self, gl_entries=None, repost_future_gle=True, from_repost=False):
-		if not self.amount_due: # if there isn't a total, bail out
+		if not self.amount_due:  # if there isn't a total, bail out
 			return
 		if not gl_entries:
 			gl_entries = self.get_gl_entries()
-
 		if gl_entries:
-			update_outstanding = "No" if (cint(self.is_paid) or self.write_off_account) else "Yes" # where are self._is
-
-			make_gl_entries(gl_entries,  cancel=(self.docstatus == 2),
-				update_outstanding=update_outstanding, merge_entries=False)
-
-			if update_outstanding == "No":
-				update_outstanding_amt(self.credit_to, "Supplier", self.supplier,
-					self.doctype, self.return_against if cint(self.is_return) else self.name)
-
-			if repost_future_gle and cint(self.update_stock) and self.auto_accounting_for_stock:
-				from erpnext.controllers.stock_controller import update_gl_entries_after
-				items, warehouses = self.get_items_and_warehouses()
-				update_gl_entries_after(self.posting_date, self.posting_time, warehouses, items)
-
-		elif self.docstatus == 2 and cint(self.update_stock) and self.auto_accounting_for_stock:
+			make_gl_entries(gl_entries, cancel=(self.docstatus == 2), merge_entries=False)
+		elif self.docstatus == 2:
 			delete_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
 
-
-
-	def get_gl_entries(self, warehouse_account=None):
-		self.expenses_included_in_valuation = self.get_company_default("expenses_included_in_valuation")
-		self.negative_expense_to_be_booked = 0.0
+	def get_gl_entries(self):
 		gl_entries = []
-
 		self.make_supplier_gl_entry(gl_entries)
-		self.make_item_gl_entries(gl_entries)
-		self.make_tax_gl_entries(gl_entries)
-
-		gl_entries = merge_similar_entries(gl_entries)
-
-		self.make_payment_gl_entries(gl_entries)
-		self.make_write_off_gl_entry(gl_entries)
-		self.make_gle_for_rounding_adjustment(gl_entries)
-
+		# self.make_payable_gl_entries(gl_entries)
 		return gl_entries
+
+	def make_supplier_gl_entry(self, gl_entries):
+		for row in self.entries:
+			gl_entries.append(
+				self.get_gl_dict({
+					"account": row.account,
+					"party_type": self.party,
+					"party": self.party,
+					"against": self.accounts_payable_account,
+					"credit": self.total_due,
+					"credit_in_account_currency": self.total_due,
+				}, self.company_currency))
+
 
 
 
