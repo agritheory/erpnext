@@ -68,4 +68,17 @@ def get_data():
 				}
 			]
 		},
+		{
+			"label": _("Livestock"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Animal Group"
+				},
+				{
+					"type": "doctype",
+					"name": "Animal"
+				},
+			]
+		}
 	]
