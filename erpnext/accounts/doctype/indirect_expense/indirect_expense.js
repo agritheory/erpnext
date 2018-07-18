@@ -2,36 +2,36 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Indirect Expense", {
-	onload: function(frm) {
+	onload: (frm) => {
 		frm.set_value("party_type", "Supplier");
 		get_default_payables_account(frm);
 		set_queries (frm);
 	},
-	onload_post_render: function(frm) {
+	onload_post_render: (frm) => {
 		setup_set_route(frm);
 		get_default_payables_account(frm);
 	},
-	party: function(frm){
+	party: (frm) => {
 		if(frm.doc.party_type == "Supplier")
 			get_payment_terms(frm);
 	},
-	payment_terms_template: function(frm){
+	payment_terms_template: (frm) => {
 		if(frm.doc.party_type == "Supplier")
 			get_due_date(frm);
 	},
-	invoice_date: function(frm){
+	invoice_date: (frm) => {
 		get_due_date(frm);
 	},
-	refresh: function(frm) {
+	refresh: (frm) => {
 		if(frm.doc.docstatus==0){
-			frm.add_custom_button("Convert to Purchase Invoice", function() {
+			frm.add_custom_button("Convert to Purchase Invoice", () => {
 				// frm = cur_frm;
 				route_to_pi(frm);
 			});
 		} else {
-			frm.add_custom_button("Payment Entry", function(frm) {
+			frm.add_custom_button("Payment Entry", (frm) => {
 				console.log("yay!");}, "Make");
-			frm.add_custom_button("Subscription", function(frm) {
+			frm.add_custom_button("Subscription", (frm) => {
 				console.log("yay!");}, "Make");
 			frm.page.set_inner_btn_group_as_primary("Make");
 		}
@@ -39,37 +39,37 @@ frappe.ui.form.on("Indirect Expense", {
 });
 
 frappe.ui.form.on("Indirect Expense Entry", {
-	amount: function(frm) {
+	amount: (frm) => {
 		update_total_due(frm);
 	},
-	entries_remove: function(frm) {
+	entries_remove: (frm) => {
 		update_total_due(frm);
 	},
-	entries_add: function(frm) {
+	entries_add: (frm) => {
 		update_total_due(frm);
 	}
 });
 
 function set_queries (frm) {
-	frm.set_query("accounts_payable_account", function() {
+	frm.set_query("accounts_payable_account", () => {
 		return {"filters": [
 			{"account_type": "Payable"},
 			{"company": frm.doc.company},
 			{"is_group": 0}, ]};
 	});
-	frm.set_query("party_type", function() {
+	frm.set_query("party_type", () => {
 		return{
 			"filters": {
 				"name": ["in",["Supplier", "Employee"]],
 			}
 		};
 	});
-	frm.fields_dict["entries"].grid.get_field("cost_center").get_query = function() {
+	frm.fields_dict["entries"].grid.get_field("cost_center").get_query = () => {
 		return{
 			filters: [ {"company": frm.doc.company},
 				{"is_group": 0}]};
 	};
-	frm.fields_dict["entries"].grid.get_field("account").get_query = function() {
+	frm.fields_dict["entries"].grid.get_field("account").get_query = () => {
 		return{
 			filters: [{"company": frm.doc.company},
 				{"is_group": 0},
@@ -101,7 +101,7 @@ function get_payment_terms(frm) {
 }
 
 frappe.ui.form.on("Indirect Expense Entry", {
-	amount_due: function(frm) {
+	amount_due: (frm) => {
 		frm.set_value("outstanding_amount", frm.doc.amount_due);
 	}
 });
@@ -124,7 +124,7 @@ function update_total_due(frm) {
 function get_due_date(frm){
 	if(frm.doc.payment_terms_template != undefined && frm.doc.invoice_date)
 		frappe.call({
-			method: "get_due_date",
+			method: "get_invoice_due_date",
 			doc: frm.doc,
 		}).done((r) => {
 			frm.set_value("due_date", r.message);
