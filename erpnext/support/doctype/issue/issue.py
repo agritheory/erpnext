@@ -94,10 +94,16 @@ def get_list_context(context=None):
 def get_issue_list(doctype, txt, filters, limit_start, limit_page_length=20, order_by=None):
 	from frappe.www.list import get_list
 	user = frappe.session.user
+	contact = frappe.db.get_value('Contact', {'user': user}, 'name')
+	customer = None
+	if contact:
+		contact_doc = frappe.get_doc('Contact', contact)
+		customer = contact_doc.get_link_for('Customer')
+
 	ignore_permissions = False
 	if is_website_user():
 		if not filters: filters = []
-		filters.append(("Issue", "raised_by", "=", user))
+		filters.append(("Issue", "customer", "=", customer)) if customer else filters.append(("Issue", "raised_by", "=", user))
 		ignore_permissions = True
 
 	return get_list(doctype, txt, filters, limit_start, limit_page_length, ignore_permissions=ignore_permissions)
@@ -129,7 +135,10 @@ def set_multiple_status(names, status):
 		set_status(name, status)
 
 def has_website_permission(doc, ptype, user, verbose=False):
-	return doc.raised_by==user
+	from erpnext.controllers.website_list_for_contact import has_website_permission
+	permission_based_on_customer = has_website_permission(doc, ptype, user, verbose)
+
+	return permission_based_on_customer or doc.raised_by==user
 
 
 def update_issue(contact, method):
