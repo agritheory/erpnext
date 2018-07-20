@@ -6,6 +6,5 @@ from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
 
-class AnimalGroup(Document):
-	def load_member_weight(self):
-		
+class AnimalGroupMember(Document):
+	pass

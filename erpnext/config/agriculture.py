@@ -10,7 +10,7 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Crop"
+					"name": "Crop",
 				},
 				{
 					"type": "doctype",
@@ -78,6 +78,10 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Animal"
+				},
+				{
+					"type": "doctype",
+					"name": "Livestock Settings"
 				},
 			]
 		}
