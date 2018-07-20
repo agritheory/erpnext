@@ -1,6 +1,8 @@
 // Copyright (c) 2018, AgriTheory and contributors
 // For license information, please see license.txt
 
+{% include 'erpnext/public/js/controllers/buying.js' %};
+
 frappe.ui.form.on("Indirect Expense", {
 	onload: (frm) => {
 		frm.set_value("party_type", "Supplier");

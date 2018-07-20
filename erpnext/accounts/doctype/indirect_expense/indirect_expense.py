@@ -7,8 +7,9 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from six import iteritems
+from erpnext.controllers.accounts_controller import AccountsController
 from frappe.model.document import Document
-from erpnext.accounts.party import get_due_date, get_patry_tax_withholding_details
+from erpnext.accounts.party import get_due_date_from_template, get_patry_tax_withholding_details
 from erpnext.accounts.utils import get_account_currency
 from erpnext import get_company_currency
 from erpnext.accounts.general_ledger import make_gl_entries, delete_gl_entries
@@ -20,17 +21,18 @@ from frappe.utils.data import nowdate
 from frappe.utils import cint, flt, round_based_on_smallest_currency_fraction
 
 
-class IndirectExpense(Document):
+class IndirectExpense(AccountsController):
 	def get_payment_terms(self):
 		return frappe.db.get_value(self.party_type, self.party, "payment_terms")
 
 	def validate(self):
-		self.check_similar_invoice_number_and_amount()
-		self.set_tax_withholding()
+		pass
+		# self.check_similar_invoice_number_and_amount()
+		# self.set_tax_withholding()
 		# self.currency_conversion()
 
 	def get_invoice_due_date(self):
-		return get_due_date(self.payment_terms_template, self.posting_date, self.invoice_date)
+		return get_due_date_from_template(template_name=self.payment_terms_template, posting_date=self.posting_date, bill_date=self.invoice_date)
 
 	def get_default_payables_account(self):
 		if self.company:
@@ -40,9 +42,11 @@ class IndirectExpense(Document):
 
 	def on_submit(self):
 		frappe.get_doc("Authorization Control").validate_approving_authority(self.doctype,
-			self.company, self.base_grand_total)
+			self.company, self.amount_due)
 		self.update_project()
 		# make gl entries
+		self.make_gl_entries()
+
 
 	def currency_conversion(self):
 		currencies = map(lambda x: x.invoice_currency if not self.company_currency else x.invoice_currency, self.entries)
@@ -53,10 +57,10 @@ class IndirectExpense(Document):
 			frappe.throw(_("Currency Conversion rates are not consistient between accounts"))
 		if self.check_conversion_rate(conversion_rate):
 			round_off_account, round_off_cost_center = get_round_off_account_and_cost_center(self.company)
-			self.rounding_adjustment = flt(self.total_due * conversion_rate, self.precision("total_due"))
+			self.rounding_adjustment = flt(self.amount_due * conversion_rate, self.precision("amount_due"))
 			self.append("entries", {"account": round_off_account,
 				"cost_center": round_off_cost_center,
-				"amount": round_based_on_smallest_currency_fraction(self.rounding_adjustment, self.company_currency, self.precision("total_due")),
+				"amount": round_based_on_smallest_currency_fraction(self.rounding_adjustment, self.company_currency, self.precision("amount_due")),
 				"currency": self.company_currency})
 
 	def check_conversion_rate(self, conversion_rate):
@@ -108,16 +112,15 @@ class IndirectExpense(Document):
 
 
 ################################################################################
-
-	def set_tax_withholding(self):
-		tax_withholding_details = get_patry_tax_withholding_details(self)
-		for tax_details in tax_withholding_details:
-			if flt(self.get("rounded_total") or self.grand_total) >= flt(tax_details['threshold']):
-				if self.taxes:
-					if tax_details['tax']['description'] not in [tax.description for tax in self.taxes]:
-						self.append('taxes', tax_details['tax'])
-				else:
-					self.append('taxes', tax_details['tax'])
+	# def set_tax_withholding(self):
+	# 	tax_withholding_details = get_patry_tax_withholding_details(self)
+	# 	for tax_details in tax_withholding_details:
+	# 		if flt(self.get("rounded_total") or self.grand_total) >= flt(tax_details['threshold']):
+	# 			if self.taxes:
+	# 				if tax_details['tax']['description'] not in [tax.description for tax in self.taxes]:
+	# 					self.append('taxes', tax_details['tax'])
+	# 			else:
+	# 				self.append('taxes', tax_details['tax'])
 
 	def make_gl_entries(self, gl_entries=None, repost_future_gle=True, from_repost=False):
 		if not self.amount_due:  # if there isn't a total, bail out
@@ -130,11 +133,11 @@ class IndirectExpense(Document):
 			delete_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
 
 	def get_gl_entries(self):
+		print("gl entries")
 		gl_entries = []
-		self.make_supplier_gl_entry(gl_entries)
-		self.make_payable_gl_entry(gl_entries)
-		self.make_gle_for_rounding_adjustment(gl_entries)
-		self.make_tax_gl_entries(gl_entries)
+		# self.make_supplier_gl_entry(gl_entries)
+		# self.make_payable_gl_entry(gl_entries)
+		# self.make_gle_for_rounding_adjustment(gl_entries)
 		return gl_entries
 
 	def make_supplier_gl_entry(self, gl_entries):
@@ -145,8 +148,8 @@ class IndirectExpense(Document):
 					"party_type": self.party,
 					"party": self.party,
 					"against": self.accounts_payable_account,
-					"credit": self.total_due,
-					"credit_in_account_currency": self.total_due,
+					"credit": self.amount_due,
+					"credit_in_account_currency": self.amount_due,
 				}, self.company_currency))
 
 	def make_payable_gl_entry(self, gl_entries):
@@ -156,8 +159,8 @@ class IndirectExpense(Document):
 				"party_type": self.party,
 				"party": self.party,
 				"against": self.accounts_payable_account,
-				"credit": self.total_due,
-				"credit_in_account_currency": self.total_due,
+				"credit": self.amount_due,
+				"credit_in_account_currency": self.amount_due,
 			}, self.company_currency))
 
 	def make_gle_for_rounding_adjustment(self, gl_entries):
@@ -168,71 +171,10 @@ class IndirectExpense(Document):
 					"account": round_off_account,
 					"against": self.supplier,
 					"debit_in_account_currency": self.rounding_adjustment,
-					"debit": self.base_rounding_adjustment,
+					"debit": self.rounding_adjustment,
 					"cost_center": round_off_cost_center,
 				}))
 
-	def make_tax_gl_entries(self, gl_entries):
-		# tax table gl entries
-		valuation_tax = {}
-		for tax in self.get("taxes"):
-			if tax.category in ("Total", "Valuation and Total") and flt(tax.base_tax_amount_after_discount_amount):
-				account_currency = get_account_currency(tax.account_head)
-				dr_or_cr = "debit" if tax.add_deduct_tax == "Add" else "credit"
-				gl_entries.append(
-					self.get_gl_dict({
-						"account": tax.account_head,
-						"against": self.supplier,
-						dr_or_cr: tax.base_tax_amount_after_discount_amount,
-						dr_or_cr + "_in_account_currency": tax.base_tax_amount_after_discount_amount if account_currency == self.company_currency else tax.tax_amount_after_discount_amount,
-						"cost_center": tax.cost_center
-					}, account_currency)
-				)
-			# accumulate valuation tax
-			if self.is_opening == "No" and tax.category in ("Valuation", "Valuation and Total") and flt(tax.base_tax_amount_after_discount_amount):
-				if self.auto_accounting_for_stock and not tax.cost_center:
-					frappe.throw(_("Cost Center is required in row {0} in Taxes table for type {1}").format(tax.idx, _(tax.category)))
-				valuation_tax.setdefault(tax.cost_center, 0)
-				valuation_tax[tax.cost_center] += \
-					(tax.add_deduct_tax == "Add" and 1 or -1) * flt(tax.base_tax_amount_after_discount_amount)
-
-		if self.is_opening == "No" and self.negative_expense_to_be_booked and valuation_tax:
-			# credit valuation tax amount in "Expenses Included In Valuation"
-			# this will balance out valuation amount included in cost of goods sold
-
-			total_valuation_amount = sum(valuation_tax.values())
-			amount_including_divisional_loss = self.negative_expense_to_be_booked
-			i = 1
-			for cost_center, amount in iteritems(valuation_tax):
-				if i == len(valuation_tax):
-					applicable_amount = amount_including_divisional_loss
-				else:
-					applicable_amount = self.negative_expense_to_be_booked * (amount / total_valuation_amount)
-					amount_including_divisional_loss -= applicable_amount
-
-				gl_entries.append(
-					self.get_gl_dict({
-						"account": self.expenses_included_in_valuation,
-						"cost_center": cost_center,
-						"against": self.supplier,
-						"credit": applicable_amount,
-						"remarks": self.remarks or "Accounting Entry for Stock"
-					})
-				)
-
-				i += 1
-
-		if self.auto_accounting_for_stock and self.update_stock and valuation_tax:
-			for cost_center, amount in iteritems(valuation_tax):
-				gl_entries.append(
-					self.get_gl_dict({
-						"account": self.expenses_included_in_valuation,
-						"cost_center": cost_center,
-						"against": self.supplier,
-						"credit": amount,
-						"remarks": self.remarks or "Accounting Entry for Stock"
-					})
-				)
 
 ##################################################################################################
 
