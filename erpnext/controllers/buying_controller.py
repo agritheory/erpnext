@@ -79,6 +79,12 @@ class BuyingController(StockController):
 					{"parent": d.item_code, "company": self.company}, "default_supplier")
 				if supplier:
 					self.supplier = supplier
+				else:
+					item_group = frappe.db.get_value("Item", d.item_code, "item_group")
+					supplier = frappe.db.get_value("Item Default",
+					{"parent": item_group, "company": self.company}, "default_supplier")
+					if supplier:
+						self.supplier = supplier
 					break
 
 	def validate_stock_or_nonstock_items(self):
@@ -710,7 +716,7 @@ def get_backflushed_subcontracted_raw_materials_from_se(purchase_orders, purchas
 		from `tabPurchase Receipt` pr, `tabPurchase Receipt Item` pri, `tabPurchase Receipt Item Supplied` prsi
 		where
 			pr.name = pri.parent and pr.name = prsi.parent and pri.purchase_order in (%s)
-			and pri.item_code = prsi.main_item_code and pr.name != '%s'
+			and pri.item_code = prsi.main_item_code and pr.name != '%s' and pr.docstatus = 1
 		group by prsi.rm_item_code
 	""" % (','.join(['%s'] * len(purchase_orders)), purchase_receipt), tuple(purchase_orders)))
 
@@ -737,8 +743,8 @@ def validate_item_type(doc, fieldname, message):
 		""".format(item_list, fieldname), as_list=True)]
 
 	if invalid_items:
-		frappe.throw(_("Following item {items} {verb} not marked as {message} item.\
+		frappe.throw(_("Following item {items} {verb} marked as {message} item.\
 			You can enable them as {message} item from its Item master".format(
 				items = ", ".join([d for d in invalid_items]),
-				verb = "are" if len(invalid_items) > 1 else "is",
+				verb = _("are not") if len(invalid_items) > 1 else _("is not"),
 				message = message)))

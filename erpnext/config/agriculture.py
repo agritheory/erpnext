@@ -18,7 +18,7 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Land Unit"
+					"name": "Location"
 				}
 			]
 		},

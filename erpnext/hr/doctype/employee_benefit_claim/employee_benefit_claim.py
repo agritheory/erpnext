@@ -17,7 +17,7 @@ class EmployeeBenefitClaim(Document):
 			frappe.throw(_("Employee {0} has no maximum benefit amount").format(self.employee))
 		payroll_period = get_payroll_period(self.claim_date, self.claim_date, frappe.db.get_value("Employee", self.employee, "company"))
 		if not payroll_period:
-			frappe.throw(_("{0} is not in a valid Payroll Period").format(self.claim_date))
+			frappe.throw(_("{0} is not in a valid Payroll Period").format(frappe.format(self.claim_date, dict(fieldtype='Date'))))
 		self.validate_max_benefit_for_component(payroll_period)
 		self.validate_max_benefit_for_sal_struct(max_benefits)
 		self.validate_benefit_claim_amount(max_benefits, payroll_period)
@@ -143,7 +143,7 @@ def get_last_payroll_period_benefits(employee, sal_slip_start_date, sal_slip_end
 	remaining_benefit = max_benefits - get_total_benefit_dispensed(employee, sal_struct, sal_slip_start_date, payroll_period)
 	if remaining_benefit > 0:
 		have_remaining = True
-		# Set the remainig benefits to flexi non pro-rata component in the salary structure
+		# Set the remaining benefits to flexi non pro-rata component in the salary structure
 		salary_components_array = []
 		for d in sal_struct.get("earnings"):
 			if d.is_flexible_benefit == 1:
