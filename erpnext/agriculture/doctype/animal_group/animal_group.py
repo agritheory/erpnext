@@ -5,7 +5,13 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
+# from frappe.agriculture.ag_utils import get_animal_weight_and_uom
 
 class AnimalGroup(Document):
-	def load_member_weight(self):
-		
+	# def load_member_weight_and_uom(self, member_type, member):
+	# 	doc = frappe.get_doc(member_type, member)
+	# 	if doc.doctype == "Animal":
+	#
+	# 		weight = doc
+	# 		w_uom = doc.
+	pass

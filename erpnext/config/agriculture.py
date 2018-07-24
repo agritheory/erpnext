@@ -84,5 +84,14 @@ def get_data():
 					"name": "Livestock Settings"
 				},
 			]
+		},
+		{
+			"label": _("Harvests and Processing"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Harvest"
+				},
+			]
 		}
 	]
