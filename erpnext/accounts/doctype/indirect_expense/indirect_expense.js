@@ -1,34 +1,32 @@
 // Copyright (c) 2018, AgriTheory and contributors
 // For license information, please see license.txt
 
-{% include 'erpnext/public/js/controllers/buying.js' %};
-
 frappe.ui.form.on("Indirect Expense", {
-	onload: (frm) => {
+	onload: frm => {
 		frm.set_value("party_type", "Supplier");
 		get_default_payables_account(frm);
 		set_queries (frm);
 	},
-	onload_post_render: (frm) => {
-		setup_set_route(frm);
+	onload_post_render: frm => {
+		//setup_set_route(frm);
 		get_default_payables_account(frm);
 	},
-	party: (frm) => {
+	party: frm => {
 		if(frm.doc.party_type == "Supplier")
 			get_payment_terms(frm);
 	},
-	payment_terms_template: (frm) => {
+	payment_terms_template: frm => {
 		if(frm.doc.party_type == "Supplier")
 			get_due_date(frm);
 	},
-	invoice_date: (frm) => {
+	invoice_date: frm => {
 		get_due_date(frm);
 	},
-	refresh: (frm) => {
+	refresh: frm => {
 		if(frm.doc.docstatus==0){
 			frm.add_custom_button("Convert to Purchase Invoice", () => {
 				// frm = cur_frm;
-				route_to_pi(frm);
+				//route_to_pi(frm);
 			});
 		} else {
 			frm.add_custom_button("Payment Entry", (frm) => {
@@ -41,15 +39,24 @@ frappe.ui.form.on("Indirect Expense", {
 });
 
 frappe.ui.form.on("Indirect Expense Entry", {
-	amount: (frm) => {
+	account: (frm, cdt, cdn) => {
+		calc_exchange_rate(frm, cdt, cdn);
 		update_total_due(frm);
 	},
-	entries_remove: (frm) => {
+	amount: (frm, cdt, cdn) => {
+		calc_exchange_rate(frm, cdt, cdn);
 		update_total_due(frm);
 	},
-	entries_add: (frm) => {
+	entries_remove: frm => {
 		update_total_due(frm);
-	}
+	},
+	entries_add: frm => {
+		update_total_due(frm);
+	},
+	invoice_currency: (frm, cdt, cdn) => {
+		calc_exchange_rate(frm, cdt, cdn);
+		update_total_due(frm);
+	},
 });
 
 function set_queries (frm) {
@@ -76,7 +83,7 @@ function set_queries (frm) {
 			filters: [{"company": frm.doc.company},
 				{"is_group": 0},
 				{"account_type": ["not in", ["Accumulated Depreciation", "Bank", "Cash",
-					"Depreciation", "Equity", "Fixed Asset", "Income Account"]]}, ]};
+					"Depreciation", "Equity", "Income Account"]]}, ]};
 	};
 }
 
@@ -85,9 +92,10 @@ function get_default_payables_account(frm){
 		method: "get_default_payables_account",
 		doc: frm.doc
 	}).done((r) => {
-		frm.set_value("accounts_payable_account", r.message)
-	}).fail((r) => {
-		console.log(r);
+		frm.set_value("accounts_payable_account", r.message.payables)
+		frm.set_value("payables_account_currency", r.message.payables_account_currency)
+	}).fail((f) => {
+		console.log(f);
 	});
 }
 
@@ -97,29 +105,38 @@ function get_payment_terms(frm) {
 		doc: frm.doc
 	}).done((r) => {
 		frm.set_value("payment_terms_template", r.message);
-	}).fail((r) => {
-		console.log(r);
+	}).fail((f) => {
+		console.log(f);
 	});
 }
 
-frappe.ui.form.on("Indirect Expense Entry", {
-	amount_due: (frm) => {
-		frm.set_value("outstanding_amount", frm.doc.amount_due);
+function calc_exchange_rate(frm, cdt, cdn){
+	var row = locals[cdt][cdn];
+	if(row.account != "" && row.amount != 0.00 && row.invoice_currency != frm.doc.company_currency){
+		frappe.call({
+			method: "calc_exchange_rate",
+			doc: frm.doc,
+			args: {"row": row},
+		}).done(() => {
+			update_total_due(frm);
+			frm.refresh_field("entries");
+		}).fail((f) => {
+			console.log(f);
+		});
+	} else{
+		frappe.model.set_value("Indirect Expense Entry", row.name, "amount_in_payables_account_currency", row.amount);
 	}
-});
+}
 
 function update_total_due(frm) {
 	let running_total = 0;
 	for(let i in frm.doc.entries) {
-		if(frm.doc.entries[i].amount != undefined){
-			running_total += frm.doc.entries[i].amount;
+		if(frm.doc.entries[i].amount_in_payables_account_currency != undefined){
+			running_total += frm.doc.entries[i].amount_in_payables_account_currency;
 		}
 	}
 	frm.doc.amount_due = running_total;
 	frm.doc.outstanding_amount = running_total;
-	frm.doc.grand_total = running_total;
-	frm.doc.net_total = running_total;
-	frm.doc.base_grand_total = running_total;
 	frm.refresh_field("amount_due");
 }
 
@@ -135,31 +152,31 @@ function get_due_date(frm){
 		});
 }
 
-function route_to_pi(frm){
-	let new_purchase_invoice = frappe.model.make_new_doc_and_get_name("Purchase Invoice");
-	frappe.route_options =
-		{ "company": frm.doc.company,
-			"supplier": frm.doc.party,
-			"due_date": frm.doc.due_date,
-			"bill_date": frm.doc.invoice_date,
-			"bill_no": frm.doc.ref_number,
-			"payment_terms_template": frm.doc.payment_terms_template,
-			"credit_to": frm.doc.accounts_payable_account,
-			"items": frm.doc.accounts
-		};
-	frappe.set_route("Form", "Purchase Invoice", new_purchase_invoice);
-}
-
-function setup_set_route(frm){
-	if(frappe.route_options != undefined){
-		frm.set_value("party_type", "Supplier");
-		frm.set_value("company", frappe.route_options.company);
-		frm.set_value("party", frappe.route_options.party);
-		frm.set_value("due_date", frappe.route_options.due_date);
-		frm.set_value("invoice_date", frappe.route_options.invoice_date);
-		frm.set_value("ref_number", frappe.route_options.ref_number);
-		frm.set_value("payment_terms_template", frappe.route_options.payment_terms);
-		frm.set_value("accounts_payable_account", frappe.route_options.credit_to);
-		frappe.route_options = {};
-	}
-}
+// function route_to_pi(frm){
+// 	let new_purchase_invoice = frappe.model.make_new_doc_and_get_name("Purchase Invoice");
+// 	frappe.route_options =
+// 		{ "company": frm.doc.company,
+// 			"supplier": frm.doc.party,
+// 			"due_date": frm.doc.due_date,
+// 			"bill_date": frm.doc.invoice_date,
+// 			"bill_no": frm.doc.ref_number,
+// 			"payment_terms_template": frm.doc.payment_terms_template,
+// 			"credit_to": frm.doc.accounts_payable_account,
+// 			"items": frm.doc.accounts
+// 		};
+// 	frappe.set_route("Form", "Purchase Invoice", new_purchase_invoice);
+// }
+//
+// function setup_set_route(frm){
+// 	if(frappe.route_options != undefined){
+// 		frm.set_value("party_type", "Supplier");
+// 		frm.set_value("company", frappe.route_options.company);
+// 		frm.set_value("party", frappe.route_options.party);
+// 		frm.set_value("due_date", frappe.route_options.due_date);
+// 		frm.set_value("invoice_date", frappe.route_options.invoice_date);
+// 		frm.set_value("ref_number", frappe.route_options.ref_number);
+// 		frm.set_value("payment_terms_template", frappe.route_options.payment_terms);
+// 		frm.set_value("accounts_payable_account", frappe.route_options.credit_to);
+// 		frappe.route_options = {};
+// 	}
+// }
