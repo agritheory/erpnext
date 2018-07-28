@@ -11,7 +11,6 @@ from frappe.model.naming import make_autoname
 
 class Animal(Document):
 	def animal_name(self):
-		print("animal name running")
 		if not self.name:
 
 			if self.animal_identifier and self.animal_id_number:
