@@ -15,6 +15,7 @@ from frappe.model.mapper import get_mapped_doc
 from erpnext.setup.utils import get_exchange_rate
 from frappe.utils import flt, round_based_on_smallest_currency_fraction
 from frappe.utils.data import fmt_money
+from erpnext.accounts.utils import get_currency_precision
 
 
 class IndirectExpense(AccountsController):
@@ -25,7 +26,7 @@ class IndirectExpense(AccountsController):
 		self.check_similar_invoice_number_and_amount()
 		self.validate_multi_currency()
 		self.set_amounts_in_company_currency()
-		# self.calculate_and_insert_rounding
+		self.get_rounding()
 
 	def on_submit(self):
 		frappe.get_doc("Authorization Control").validate_approving_authority(self.doctype,
@@ -34,7 +35,7 @@ class IndirectExpense(AccountsController):
 		self.make_entries_to_gl()
 
 	def on_cancel(self):
-		self.make_gl_entries(1)
+		self.make_entries_to_gl(cancel=True)
 		self.update_project()
 
 	def get_invoice_due_date(self):
@@ -119,16 +120,23 @@ class IndirectExpense(AccountsController):
 				project.save()
 				project_list.append(row.project)
 
-################################################################################
-	def make_entries_to_gl(self, cancel=0, adv_adj=0):
-		gl_map = []
-		# make ap gl entry
-		# rounding gl entries
+	def get_rounding(self):
+		pass
 
-	def make_expense_entries(self, cancel=0, adv_adj=0):
-		# need gl map - look at PI for guidance
+
+################################################################################
+	def make_entries_to_gl(self, cancel=False):
+		gl_entries = []
+		self.make_payable_gl_entry(gl_entries, cancel)
+		self.make_expense_entries(gl_entries, cancel)
+		self.make_gle_for_rounding_adjustment(gl_entries, cancel)
+		if gl_entries:
+			print(gl_entries)
+			make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
+
+	def make_expense_entries(self, gl_entries, cancel):
 		for row in self.entries:
-			gl_map.append(
+			gl_entries.append(
 				self.get_gl_dict({
 					"account": row.account,
 					"debit": flt(row.amount, row.precision("amount")),
@@ -139,9 +147,39 @@ class IndirectExpense(AccountsController):
 					"cost_center": row.cost_center,
 					"project": row.project,
 					"finance_book": self.finance_book,
-				}))
-		if gl_map:
-			make_gl_entries(gl_map, cancel=cancel, adv_adj=adv_adj)
+				}, self.payables_account_currency))
+		# if gl_entries:
+		# 	print(gl_entries)
+		# 	make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
+
+	def make_payable_gl_entry(self, gl_entries, cancel):
+		gl_entries.append(
+			self.get_gl_dict({
+				"account": self.accounts_payable_account,
+				"party_type": self.party_type,
+				"party": self.party,
+				# "against": self.against_expense_account,
+				"credit": self.amount_due,
+				"credit_in_account_currency": self.amount_due,
+			}, self.payables_account_currency))
+		# if gl_entries:
+		# 	print(gl_entries)
+		# 	make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
+
+	def make_gle_for_rounding_adjustment(self, gl_entries, cancel):
+		if self.rounding_adjustment:
+			round_off_account, round_off_cost_center = get_round_off_account_and_cost_center(self.company)
+			gl_entries.append(
+				self.get_gl_dict({
+					"account": round_off_account,
+					"against": self.supplier,
+					"debit_in_account_currency": self.rounding_adjustment,
+					"debit": self.base_rounding_adjustment,
+					"cost_center": round_off_cost_center,
+				}, self.payables_account_currency))
+			# if gl_entries:
+			# 	print(gl_entries)
+			# 	make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
 
 ##################################################################################################
 
