@@ -39,10 +39,12 @@ class IndirectExpense(AccountsController):
 		self.update_project()
 
 	def get_invoice_due_date(self):
-		return get_due_date_from_template(template_name=self.payment_terms_template, posting_date=self.posting_date, bill_date=self.invoice_date)
+		return get_due_date_from_template(template_name=self.payment_terms_template,
+			posting_date=self.posting_date, bill_date=self.invoice_date)
 
 	def get_payment_terms(self):
-		return frappe.db.get_value(self.party_type, self.party, "payment_terms")
+		ptt = frappe.db.get_value(self.party_type, self.party, "payment_terms")
+		return ptt if ptt else ""
 
 	def get_default_payables_account(self):
 		if self.company:

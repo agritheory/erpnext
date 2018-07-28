@@ -8,11 +8,13 @@ import unittest
 
 class TestIndirectExpense(unittest.TestCase):
 	pass
-
-
-
 # test non-default AP account curency and conversion from default currency expense
 # opposite of this
 # split expense
 # split cost center with same expense account
-#
+# induce rounding
+
+# update Payment Entry
+# update project cost code (inline)
+# update landed cost voucher
+# update campaign costing report
