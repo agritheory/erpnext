@@ -114,7 +114,7 @@ class IndirectExpense(AccountsController):
 			if row.project and row.project not in project_list:
 				project = frappe.get_doc("Project", row.project)
 				project.flags.dont_sync_tasks = True
-				# project.update_purchase_costing()  # requires change to project.py
+				# project.update_purchase_costing()  # requires these change to project.py
 				# total_purchase_cost = frappe.db.sql("""select sum(base_net_amount)
 				# 		from `tabPurchase Invoice Item` as t1, `tabIndirect Expense` as t2,
 				# 		where t1.project = %s and t1.docstatus=1
@@ -217,14 +217,12 @@ def map_to_payment_entry(source_name, target_doc=None, ignore_permissions=False)
 			"doctype": "Payment Entry",
 			"field_map": {
 				"company": "company",
-				"supplier": "party",
-				"due_date": "due_date",
-				"invoice_date": "bill_date",
-				"ref_number": "bill_no",
-				"payment_terms_template": "payment_terms_template",
-				"accounts_payable_account": "credit_to",
+				"accounts_payable_account": "paid_to",
+				"party_type": "party_type",
+				"party": "party",
 			}
 		}}, target_doc)
+	target_doc.payment_type = "Pay"
 	return target_doc
 
 
@@ -234,13 +232,8 @@ def map_to_auto_repeat(source_name, target_doc=None, ignore_permissions=False):
 		{"Indirect Expense": {
 			"doctype": "Auto Repeat",
 			"field_map": {
-				"company": "company",
-				"supplier": "party",
-				"due_date": "due_date",
-				"invoice_date": "bill_date",
-				"ref_number": "bill_no",
-				"payment_terms_template": "payment_terms_template",
-				"accounts_payable_account": "credit_to",
+				"doctype": "reference_doctype",
+				"name": "reference_document",
 			}
 		}}, target_doc)
 	return target_doc

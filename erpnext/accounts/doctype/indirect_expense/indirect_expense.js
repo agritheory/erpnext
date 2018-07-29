@@ -8,7 +8,7 @@ frappe.ui.form.on("Indirect Expense", {
 		set_queries (frm);
 	},
 	onload_post_render: frm => {
-		//setup_set_route(frm);
+		setup_set_route(frm);
 		get_default_payables_account(frm);
 	},
 	party: frm => {
@@ -25,16 +25,30 @@ frappe.ui.form.on("Indirect Expense", {
 	refresh: frm => {
 		if(frm.doc.docstatus==0){
 			frm.add_custom_button("Convert to Purchase Invoice", () => {
-				// frm = cur_frm;
-				//route_to_pi(frm);
+				frm.trigger("convert_to_pi");
 			});
 		} else {
-			frm.add_custom_button("Payment Entry", (frm) => {
-				console.log("yay!");}, "Make");
-			frm.add_custom_button("Subscription", (frm) => {
-				console.log("yay!");}, "Make");
+			frm.add_custom_button("Payment Entry", () => {
+				frm.trigger("make_payment_entry");}, "Make");
+			frm.add_custom_button("Auto Repeat", () => {
+				frm.trigger("make_auto_repeat");}, "Make");
 			frm.page.set_inner_btn_group_as_primary("Make");
 		}
+	},
+	convert_to_pi: () => {
+
+	},
+	make_payment_entry: () => {
+		frappe.model.open_mapped_doc({
+			method: "erpnext.accounts.doctype.indirect_expense.indirect_expense.map_to_payment_entry",
+			frm: cur_frm
+		});
+	},
+	make_auto_repeat: () => {
+		frappe.model.open_mapped_doc({
+			method: "erpnext.accounts.doctype.indirect_expense.indirect_expense.map_to_auto_repeat",
+			frm: cur_frm
+		});
 	}
 });
 
@@ -152,31 +166,31 @@ function get_due_date(frm){
 		});
 }
 
-// function route_to_pi(frm){
-// 	let new_purchase_invoice = frappe.model.make_new_doc_and_get_name("Purchase Invoice");
-// 	frappe.route_options =
-// 		{ "company": frm.doc.company,
-// 			"supplier": frm.doc.party,
-// 			"due_date": frm.doc.due_date,
-// 			"bill_date": frm.doc.invoice_date,
-// 			"bill_no": frm.doc.ref_number,
-// 			"payment_terms_template": frm.doc.payment_terms_template,
-// 			"credit_to": frm.doc.accounts_payable_account,
-// 			"items": frm.doc.accounts
-// 		};
-// 	frappe.set_route("Form", "Purchase Invoice", new_purchase_invoice);
-// }
-//
-// function setup_set_route(frm){
-// 	if(frappe.route_options != undefined){
-// 		frm.set_value("party_type", "Supplier");
-// 		frm.set_value("company", frappe.route_options.company);
-// 		frm.set_value("party", frappe.route_options.party);
-// 		frm.set_value("due_date", frappe.route_options.due_date);
-// 		frm.set_value("invoice_date", frappe.route_options.invoice_date);
-// 		frm.set_value("ref_number", frappe.route_options.ref_number);
-// 		frm.set_value("payment_terms_template", frappe.route_options.payment_terms);
-// 		frm.set_value("accounts_payable_account", frappe.route_options.credit_to);
-// 		frappe.route_options = {};
-// 	}
-// }
+function route_to_pi(frm){
+	let new_purchase_invoice = frappe.model.make_new_doc_and_get_name("Purchase Invoice");
+	frappe.route_options =
+		{ "company": frm.doc.company,
+			"supplier": frm.doc.party,
+			"due_date": frm.doc.due_date,
+			"bill_date": frm.doc.invoice_date,
+			"bill_no": frm.doc.ref_number,
+			"payment_terms_template": frm.doc.payment_terms_template,
+			"credit_to": frm.doc.accounts_payable_account,
+			"items": frm.doc.accounts
+		};
+	frappe.set_route("Form", "Purchase Invoice", new_purchase_invoice);
+}
+
+function setup_set_route(frm){
+	if(frappe.route_options != undefined){
+		frm.set_value("party_type", "Supplier");
+		frm.set_value("company", frappe.route_options.company);
+		frm.set_value("party", frappe.route_options.party);
+		frm.set_value("due_date", frappe.route_options.due_date);
+		frm.set_value("invoice_date", frappe.route_options.invoice_date);
+		frm.set_value("ref_number", frappe.route_options.ref_number);
+		frm.set_value("payment_terms_template", frappe.route_options.payment_terms);
+		frm.set_value("accounts_payable_account", frappe.route_options.credit_to);
+		frappe.route_options = {};
+	}
+}
