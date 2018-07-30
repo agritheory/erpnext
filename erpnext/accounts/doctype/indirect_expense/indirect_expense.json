@@ -679,7 +679,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-07-28 17:41:05.703893", 
+ "modified": "2018-07-29 21:44:36.278353", 
  "modified_by": "Administrator", 
  "module": "Accounts", 
  "name": "Indirect Expense", 
@@ -751,6 +751,6 @@
  "show_name_in_global_search": 0, 
  "sort_field": "modified", 
  "sort_order": "DESC", 
- "track_changes": 0, 
+ "track_changes": 1, 
  "track_seen": 0
 }
