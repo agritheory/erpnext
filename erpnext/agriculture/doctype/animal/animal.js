@@ -13,3 +13,6 @@ function set_purchase_properties(frm) {
 	frm.set_df_property("purchased_from", "reqd", frm.doc.animal_origin == "Purchased");
 	frm.set_df_property("purchase_price", "reqd", frm.doc.animal_origin == "Purchased");
 }
+
+
+// frm.set_df_property("purchase_price", "title", eval);
