@@ -35,8 +35,8 @@ frappe.ui.form.on("Indirect Expense", {
 			frm.page.set_inner_btn_group_as_primary("Make");
 		}
 	},
-	convert_to_pi: () => {
-
+	convert_to_pi: frm => {
+		route_to_pi(frm);
 	},
 	make_payment_entry: () => {
 		frappe.model.open_mapped_doc({
