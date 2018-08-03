@@ -220,9 +220,13 @@ def map_to_payment_entry(source_name, target_doc=None, ignore_permissions=False)
 				"accounts_payable_account": "paid_to",
 				"party_type": "party_type",
 				"party": "party",
+				"payables_account_currency": "paid_to_account_currency",
+				"amount_due": "paid_amount",
+				"project": "project"
 			}
 		}}, target_doc)
 	target_doc.payment_type = "Pay"
+	target_doc.party_name = target_doc.party
 	return target_doc
 
 

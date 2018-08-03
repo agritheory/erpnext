@@ -1,6 +1,6 @@
 // Copyright (c) 2016, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
-//{% include "erpnext/public/js/controllers/accounts.js" %}
+{% include "erpnext/public/js/controllers/accounts.js" %}
 
 frappe.ui.form.on('Payment Entry', {
 	onload: function(frm) {
@@ -734,6 +734,7 @@ frappe.ui.form.on('Payment Entry', {
 			if (!row.reference_doctype) {
 				return;
 			}
+
 			if(frm.doc.party_type=="Customer" &&
 				!in_list(["Sales Order", "Sales Invoice", "Journal Entry"], row.reference_doctype)
 			) {
@@ -804,119 +805,57 @@ frappe.ui.form.on('Payment Entry', {
 		}
 	}
 });
-// CHANGED 7/3/18 by @agritheory
-frappe.ui.form.on("Payment Entry", {
-	paid_to: (frm) => {
-		if(discount_ready(frm)){
-			get_eligible_discount(frm);
-		}
-	},
-	onload: (frm) => {
-		if(frm.doc.references && frm.doc.paid_to && frm.doc.party && frm.doc.docstatus == 0){
-			get_eligible_discount(frm);
-		}
-		if(frm.doc.docstatus == "1"){ // should this be one level out? and included cancelled state
-			get_eligible_discount(frm);
-		}
-	},
-	party: (frm) => {
-		if(discount_ready(frm)){
-			get_eligible_discount(frm);
-		}
-	},
-	paid_amount: (frm) => {
-		if(discount_ready(frm)){
-			get_eligible_discount(frm);
-		}
-	},
-	paid_from: (frm) => {
-		if(discount_ready(frm)){
-			get_eligible_discount(frm);
-		}
-	}
-});
 
-frappe.ui.form.on("Payment Entry Reference", {
-	references_remove: (frm) => {
-		get_eligible_discount(frm);
-	},
-	reference_doctype: (frm, cdt, cdn) => {
+
+frappe.ui.form.on('Payment Entry Reference', {
+	reference_doctype: function(frm, cdt, cdn) {
 		var row = locals[cdt][cdn];
 		frm.events.validate_reference_document(frm, row);
 	},
-	reference_name: (frm, cdt, cdn) =>  {
+
+	reference_name: function(frm, cdt, cdn) {
 		var row = locals[cdt][cdn];
-		get_reference_details(frm, row);
-	}
-});
+		if (row.reference_name && row.reference_doctype) {
+			return frappe.call({
+				method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_reference_details",
+				args: {
+					reference_doctype: row.reference_doctype,
+					reference_name: row.reference_name,
+					party_account_currency: frm.doc.payment_type=="Receive" ?
+						frm.doc.paid_from_account_currency : frm.doc.paid_to_account_currency
+				},
+				callback: function(r, rt) {
+					if(r.message) {
+						$.each(r.message, function(field, value) {
+							frappe.model.set_value(cdt, cdn, field, value);
+						})
 
-function discount_ready(frm){
-	if(frm.doc.paid_to &&
-		frm.doc.party &&
-		frm.doc.paid_from &&
-		frm.doc.posting_date &&
-		frm.doc.docstatus == 0){
-		return true;
-	} else {
-		return false;
-	}
-}
+						let allocated_amount = frm.doc.unallocated_amount > row.outstanding_amount ?
+							row.outstanding_amount : frm.doc.unallocated_amount;
 
-function get_reference_details(frm, row){
-	frappe.call({
-		method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_reference_details",
-		args: {
-			reference_doctype: row.reference_doctype,
-			reference_name: row.reference_name,
-			party_account_currency: frm.doc.payment_type=="Receive" ? frm.doc.paid_from_account_currency : frm.doc.paid_to_account_currency
+						frappe.model.set_value(cdt, cdn, 'allocated_amount', allocated_amount);
+						frm.refresh_fields();
+					}
+				}
+			})
 		}
-	}).done((r) => {
-		r.message ? set_reference_details(frm, r.message) : undefined
-	}).fail((f) => {
-		console.log("Failed on get_reference_details", f);
-	});
-}
+	},
 
-function set_reference_details(frm, row){
-	$.each(row, (field, value) => {frappe.model.set_value(cdt, cdn, field, value);});
-	let allocated_amount = frm.doc.unallocated_amount > row.outstanding_amount ? row.outstanding_amount : frm.doc.unallocated_amount;
-	frappe.model.set_value(cdt, cdn, 'allocated_amount', allocated_amount);
-	frm.refresh_fields();
-}
-
-function get_eligible_discount(frm){
-	frappe.call({
-		method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_eligible_discount",
-		args: {"refs": frm.doc.references,
-			"deductions": frm.doc.deductions == undefined ? frm.doc.deductions = []: frm.doc.deductions,
-			"company": frm.doc.company,
-			"posting_date": cur_frm.doc.posting_date},
-	}).done((r) => {
-		if(Array.isArray(r.message) || r.message.length){
-			check_discounts(frm, r.message);
-		}
-	}).fail((f) => {
-		console.log("Failed on calc_discount", f);
-	});
-}
-
-function check_discounts(frm, eligible_discounts){
-	if(!Array.isArray(frm.doc.deductions) || !frm.doc.deductions.length){
-		eligible_discounts.forEach(discount => { populate_discount(frm, discount);});
-	} else {
-		let deductions = frm.doc.deductions.map(deduction => {return deduction.reference_document;});
-		eligible_discounts.map(discount =>{
-			if(deductions.indexOf(discount.reference_document) < 0){ populate_discount(frm, discount);}
-		});
-		frm.refresh_field("deductions");
+	allocated_amount: function(frm) {
 		frm.events.set_total_allocated_amount(frm);
-		frm.trigger("set_difference_amount");
-		frm.refresh_field("difference_amount");
-	}
-}
+	},
 
-function populate_discount(frm, discount){
-	let child = frm.add_child("deductions");
-	frappe.model.set_value(child.doctype, child.name, discount);
-	frm.refresh_field("deductions");
-}
+	references_remove: function(frm) {
+		frm.events.set_total_allocated_amount(frm);
+	}
+})
+
+frappe.ui.form.on('Payment Entry Deduction', {
+	amount: function(frm) {
+		frm.events.set_unallocated_amount(frm);
+	},
+
+	deductions_remove: function(frm) {
+		frm.events.set_unallocated_amount(frm);
+	}
+})

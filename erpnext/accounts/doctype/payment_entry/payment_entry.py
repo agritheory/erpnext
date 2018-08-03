@@ -7,13 +7,12 @@ import frappe, erpnext, json
 from frappe import _, scrub, ValidationError
 from frappe.utils import flt, comma_or, nowdate, getdate
 from erpnext.accounts.utils import get_outstanding_invoices, get_account_currency, get_balance_on
-from erpnext.accounts.party import get_party_account, get_patry_tax_withholding_details
+from erpnext.accounts.party import get_party_account
 from erpnext.accounts.doctype.journal_entry.journal_entry import get_default_bank_cash_account
 from erpnext.setup.utils import get_exchange_rate
 from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.hr.doctype.expense_claim.expense_claim import update_reimbursed_amount
 from erpnext.controllers.accounts_controller import AccountsController, get_supplier_block_status
-from frappe.utils.data import add_days, date_diff, unique
 
 from six import string_types, iteritems
 
@@ -138,7 +137,7 @@ class PaymentEntry(AccountsController):
 			self.paid_to_account_balance = acc.account_balance
 
 		self.party_account_currency = self.paid_from_account_currency \
-			if self.payment_type == "Receive" else self.paid_to_account_currency
+			if self.payment_type=="Receive" else self.paid_to_account_currency
 
 		self.set_missing_ref_details()
 
@@ -229,9 +228,9 @@ class PaymentEntry(AccountsController):
 							ref_party_account = ref_doc.debit_to
 						elif self.party_type == "Student":
 							ref_party_account = ref_doc.receivable_account
-						elif self.party_type == "Supplier":
+						elif self.party_type=="Supplier":
 							ref_party_account = ref_doc.credit_to
-						elif self.party_type == "Employee":
+						elif self.party_type=="Employee":
 							ref_party_account = ref_doc.payable_account
 
 						if ref_party_account != self.party_account:
@@ -894,9 +893,9 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 		pe.set_amounts()
 	return pe
 
-@frappe.whitelist()
+
 def get_paid_amount(dt, dn, party_type, party, account, due_date):
-	if party_type == "Customer":
+	if party_type=="Customer":
 		dr_or_cr = "credit_in_account_currency - debit_in_account_currency"
 	else:
 		dr_or_cr = "debit_in_account_currency - credit_in_account_currency"
@@ -914,62 +913,3 @@ def get_paid_amount(dt, dn, party_type, party, account, due_date):
 	""".format(dr_or_cr=dr_or_cr), (dt, dn, party_type, party, account, due_date))
 
 	return paid_amount[0][0] if paid_amount else 0
-
-"""
-returns a list of eligible deductions in the format expected by frm.doc.deductions
-"""
-@frappe.whitelist()
-def get_eligible_discount(refs, deductions, company, posting_date):
-	discount_account = frappe.db.get_value("Company", company, "default_sales_discount_account")
-	default_cost_center = frappe.db.get_value("Company", company, "cost_center")
-	refs = json.loads(refs) if isinstance(refs, basestring) else list(refs)
-	deductions = json.loads(deductions) if isinstance(refs, basestring) else list(deductions)
-	return filter(lambda x: x is not None, [check_eligible_discount(ref, deductions,
-		discount_account, default_cost_center, posting_date) for ref in refs])
-
-
-@frappe.whitelist()
-def check_eligible_discount(ref, deductions, discount_account, default_cost_center, posting_date):
-	date, doc, ptt = get_ref(ref["reference_doctype"], ref["reference_name"])
-	for term in ptt.terms:
-		if(date_diff(posting_date, add_days(doc[date], term.discount_eligible_days)) <= 0):
-			discount_amount = doc["grand_total"] * (term.discount_percent / 100) if doc["apply_discount_on"] == "Grand Total" \
-				else doc["net_total"] * (term.discount_percent / 100)
-			return {"account": discount_account,
-					"cost_center": default_cost_center,
-					"amount": discount_amount,
-					"reference_document": ref["reference_name"],
-					"discount_eligible_percent": term.discount_percent,
-					"discount_date": add_days(doc[date], term.discount_eligible_days)}
-
-@frappe.whitelist()
-def get_ref(ref_doctype, ref_doc):
-	date = "posting_date" if ref_doctype in ["Sales Invoice", "Purchase Invoice", "Journal Entry"] else "transaction_date"
-	if ref_doctype is not "Journal Entry":
-		doc = frappe.get_value(ref_doctype, ref_doc, [date, "payment_terms_template", "grand_total",
-			"apply_discount_on", "net_total"], as_dict=True)
-	else:
-		je = frappe.get_value(ref_doctype, ref_doc, [date, "payment_terms_template", "total_debit"], as_dict=True)
-		doc["grand_total"] = je["total_debit"]
-		doc["net_total"] = je["total_debit"]
-		doc["apply_discount_on"] = "Grand Total"
-	return date, doc, frappe.get_doc("Payment Terms Template", doc["payment_terms_template"])
-
-
-@frappe.whitelist()
-def set_paid_invoices(transactions):
-	for item in transactions:
-		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "outstanding_amount", 0)
-		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "Status", "Paid")
-		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "discount_amount", item["amount"])
-	frappe.db.commit()
-
-
-# QUESTION: this code should merged with update_invoice_status in the accounts controller?
-@frappe.whitelist()
-def cancel_discounted_invoices(transactions):
-	for item in transactions:
-		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "outstanding_amount", 0)
-		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "Status", "Paid")
-		frappe.db.set_value(item["reference_doctype"], item["reference_document"], "discount_amount", item["amount"])
-	frappe.db.commit()
