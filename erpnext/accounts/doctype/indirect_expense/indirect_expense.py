@@ -13,8 +13,8 @@ from erpnext.accounts.utils import get_account_currency
 from erpnext.accounts.general_ledger import make_gl_entries, get_round_off_account_and_cost_center
 from frappe.model.mapper import get_mapped_doc
 from erpnext.setup.utils import get_exchange_rate
-from frappe.utils import flt, round_based_on_smallest_currency_fraction
-from frappe.utils.data import fmt_money
+from frappe.utils import flt, cint
+from frappe.utils.data import fmt_money, round_based_on_smallest_currency_fraction
 from erpnext.accounts.utils import get_currency_precision
 
 
@@ -124,7 +124,11 @@ class IndirectExpense(AccountsController):
 
 	def get_rounding(self):
 		pass
-
+		# rounded_amount_due = round_based_on_smallest_currency_fraction(self.amount_due,
+		# 	self.payables_account_currency)
+		# if rounded_amount_due != self.amount_due:
+		# 	self.rounding_adjustment = rounded_amount_due - self.amount_due
+		# 	self.amount_due = rounded_amount_due
 
 ################################################################################
 	def make_entries_to_gl(self, cancel=False):
