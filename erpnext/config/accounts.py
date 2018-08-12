@@ -34,16 +34,40 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Indirect Expense",
+					"label": _("Indirect Expense"),
+					"description": _("Book a non-inventory expense")
+				},
+				{
+					"type": "doctype",
 					"name": "Auto Repeat",
 					"label": _("Auto Repeat"),
 					"description": _("To make recurring documents")
 				},
 				{
 					"type": "doctype",
-					"name": "Indirect Expense",
-					"label": _("Indirect Expense"),
-					"description": _("Book a non-inventory expense")
-				}
+					"name": "Loyalty Program",
+					"label": _("Loyalty Program"),
+					"description": _("To make Customer based incentive schemes.")
+				},
+				{
+					"type": "doctype",
+					"name": "Loyalty Point Entry",
+					"label": _("Loyalty Point Entry"),
+					"description": _("To view logs of Loyalty Points assigned to a Customer.")
+				},
+				{
+					"type": "report",
+					"name": "Accounts Receivable",
+					"doctype": "Sales Invoice",
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Accounts Payable",
+					"doctype": "Purchase Invoice",
+					"is_query_report": True
+				},
 			]
 
 		},
@@ -193,6 +217,11 @@ def get_data():
 					"type": "doctype",
 					"name": "Tax Rule",
 					"description": _("Tax Rule for transactions.")
+				},
+				{
+					"type": "doctype",
+					"name": "Tax Withholding Category",
+					"description": _("Tax Withholding rates to be applied on transactions.")
 				},
 				{
 					"type": "report",

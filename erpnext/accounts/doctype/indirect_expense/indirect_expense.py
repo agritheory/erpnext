@@ -25,6 +25,7 @@ class IndirectExpense(AccountsController):
 	def validate(self):
 		self.check_similar_invoice_number_and_amount()
 		self.validate_multi_currency()
+		self.populate_default_cost_centers()
 		self.set_amounts_in_company_currency()
 		self.get_rounding()
 
@@ -48,7 +49,7 @@ class IndirectExpense(AccountsController):
 
 	def get_default_payables_account(self):
 		if self.company:
-			payables = frappe.db.get_value("Company", self.company, "default_payable_account")
+			payables = frappe.get_cached_value("Company", self.company, "default_payable_account")
 			payables_account_currency = get_account_currency(payables)
 			return {"payables": payables, "payables_account_currency": payables_account_currency}
 		else:
@@ -72,6 +73,12 @@ class IndirectExpense(AccountsController):
 	def set_amounts_in_company_currency(self):
 		for row in self.entries:
 			row.amount_in_payables_account_currency = row.amount * row.exchange_rate
+
+	def populate_default_cost_centers(self):
+		default_cost_center = frappe.get_cached_value('Company', self.company, 'cost_center')
+		for row in self.entries:
+			if not row.cost_center:
+				row.cost_center = default_cost_center
 
 	def validate_multi_currency(self):
 		alternate_currency = []
@@ -123,12 +130,13 @@ class IndirectExpense(AccountsController):
 				project_list.append(row.project)
 
 	def get_rounding(self):
-		pass
-		# rounded_amount_due = round_based_on_smallest_currency_fraction(self.amount_due,
-		# 	self.payables_account_currency)
-		# if rounded_amount_due != self.amount_due:
-		# 	self.rounding_adjustment = rounded_amount_due - self.amount_due
-		# 	self.amount_due = rounded_amount_due
+		rounded_amount_due = round_based_on_smallest_currency_fraction(self.amount_due,
+			self.payables_account_currency)
+		if rounded_amount_due != self.amount_due:
+			self.rounding_adjustment = rounded_amount_due - self.amount_due
+			self.amount_due = rounded_amount_due
+		else:
+			self.rounding_adjustment = 0.0
 
 ################################################################################
 	def make_entries_to_gl(self, cancel=False):
@@ -137,7 +145,6 @@ class IndirectExpense(AccountsController):
 		self.make_expense_entries(gl_entries, cancel)
 		self.make_gle_for_rounding_adjustment(gl_entries, cancel)
 		if gl_entries:
-			print(gl_entries)
 			make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
 
 	def make_expense_entries(self, gl_entries, cancel):
@@ -154,9 +161,6 @@ class IndirectExpense(AccountsController):
 					"project": row.project,
 					"finance_book": self.finance_book,
 				}, self.payables_account_currency))
-		# if gl_entries:
-		# 	print(gl_entries)
-		# 	make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
 
 	def make_payable_gl_entry(self, gl_entries, cancel):
 		gl_entries.append(
@@ -168,9 +172,6 @@ class IndirectExpense(AccountsController):
 				"credit": self.amount_due,
 				"credit_in_account_currency": self.amount_due,
 			}, self.payables_account_currency))
-		# if gl_entries:
-		# 	print(gl_entries)
-		# 	make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
 
 	def make_gle_for_rounding_adjustment(self, gl_entries, cancel):
 		if self.rounding_adjustment:
@@ -178,14 +179,11 @@ class IndirectExpense(AccountsController):
 			gl_entries.append(
 				self.get_gl_dict({
 					"account": round_off_account,
-					"against": self.supplier,
+					"against": self.party,
 					"debit_in_account_currency": self.rounding_adjustment,
-					"debit": self.base_rounding_adjustment,
+					"debit": self.rounding_adjustment,
 					"cost_center": round_off_cost_center,
 				}, self.payables_account_currency))
-			# if gl_entries:
-			# 	print(gl_entries)
-			# 	make_gl_entries(gl_entries, cancel=cancel, merge_entries=False)
 
 ##################################################################################################
 

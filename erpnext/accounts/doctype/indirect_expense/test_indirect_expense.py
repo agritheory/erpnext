@@ -5,11 +5,17 @@ from __future__ import unicode_literals
 
 import frappe
 import unittest
+# from erpnext.accounts.doctype.doctype.indirect_expense import 
 
-# test_records = frappe.get_test_records('Indirect Expense')
+test_records = frappe.get_test_records('Indirect Expense')
 
 class TestIndirectExpense(unittest.TestCase):
-	pass
+	def test_indirect_expense_split_account(self):
+		ie = frappe.copy_doc(test_records[0])
+
+		self.jv_against_voucher_testcase(base_jv, jv_invoice)
+
+
 # test non-default AP account curency and conversion from default currency expense
 # opposite of this
 # split expense
