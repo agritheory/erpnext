@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.utils import nowdate
 from erpnext.accounts.utils import get_fiscal_year
 
@@ -11,25 +12,20 @@ def execute(filters=None):
 	if not filters:
 		filters.setdefault('fiscal_year', get_fiscal_year(nowdate())[0])
 		filters.setdefault('company', frappe.db.get_default("company"))
-	columns, data = [], []
-	columns.append({"label": "Supplier", "fieldname": "supplier",
-		"fieldtype": "Link", "width": 200, "options": "Supplier"},
-		{"label": "Tax ID", "fieldname": "tax_id",
-			"fieldtype": "Data", "width": 100},
-		{"label": "Total Payments", "fieldname": "payments",
-			"fieldtype": "Currency", "width": 100, "options": "Supplier"})
-
+	data = []
+	columns = get_columns()
 	data = frappe.db.sql("""
 		SELECT
-			gl.party AS "Supplier:Link/Supplier:100",
-			SUM(gl.debit) AS "Total Payments:Currency:100"
+			s.supplier_group as "supplier_group",
+			gl.party AS "supplier",
+			s.tax_id as "tax_id",
+			SUM(gl.debit) AS "payments"
 		FROM
-			`tabGL Entry` gl
-		JOIN `tabSupplier` s ON s.name = gl.party
+			`tabGL Entry` gl INNER JOIN `tabSupplier` s
 		WHERE
-			s.irs_1099 = 1
+			s.name = gl.party
+		AND	s.irs_1099 = 1
 		AND gl.fiscal_year = %(fiscal_year)s
-		AND s.supplier_group = %(supplier_group)s
 		AND gl.party_type = "Supplier"
 
 		GROUP BY
@@ -39,5 +35,38 @@ def execute(filters=None):
 			gl.party DESC""", {"fiscal_year": filters.fiscal_year,
 				"supplier_group": filters.supplier_group,
 				"company": filters.company}, as_dict=True)
-
+	print(data)
 	return columns, data
+
+
+def get_columns():
+	return [
+		{
+			"fieldname": "supplier_group",
+			"label": _("Supplier Group"),
+			"fieldtype": "Link",
+			"options": "Supplier Group",
+			"width": 160
+		},
+		{
+			"fieldname": "supplier",
+			"label": _("Supplier"),
+			"fieldtype": "Link",
+			"options": "Supplier",
+			"width": 160
+		},
+		{
+			"fieldname": "tax_id",
+			"label": _("Tax ID"),
+			"fieldtype": "Data",
+			"width": 80
+		},
+		{
+
+			"fieldname": "payments",
+			"label": _("Total Payments"),
+			"fieldtype": "Currency",
+			"options": "Supplier",
+			"width": 80
+		}
+	]
