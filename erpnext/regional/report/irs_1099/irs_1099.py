@@ -35,7 +35,6 @@ def execute(filters=None):
 			gl.party DESC""", {"fiscal_year": filters.fiscal_year,
 				"supplier_group": filters.supplier_group,
 				"company": filters.company}, as_dict=True)
-	print(data)
 	return columns, data
 
 
