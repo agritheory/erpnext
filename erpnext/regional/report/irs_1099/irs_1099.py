@@ -3,9 +3,12 @@
 
 from __future__ import unicode_literals
 import frappe
+import json
 from frappe import _
 from frappe.utils import nowdate
 from erpnext.accounts.utils import get_fiscal_year
+from PyPDF2 import PdfFileWriter
+from frappe.utils.print_format import read_multi_pdf
 
 
 def execute(filters=None):
@@ -69,3 +72,12 @@ def get_columns():
 			"width": 80
 		}
 	]
+
+@frappe.whitelist()
+def irs_1099_print_format(filters):
+	filters = json.loads(filters)
+	columns, data = execute(filters)
+	output = PdfFileWriter()
+	for row in data:
+		output = frappe.get_print("Supplier", row.name, print_format='IRS 1099', as_pdf=True, output=output)
+	filecontent = read_multi_pdf(output)

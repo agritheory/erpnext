@@ -28,5 +28,23 @@ frappe.query_reports["IRS 1099"] = {
 			"default": "",
 			"width": "80"
 		},
-	]
+	],
+
+	onload: function(query_report) {
+		query_report.page.add_inner_button(__("IRS 1099 Form PDF Bulk"), () => {
+			build_1099_print(query_report);
+
+
+		})
+	}
 };
+
+function build_1099_print(query_report){
+	frappe.call({
+		method: "erpnext.regional.report.irs_1099.irs_1099.irs_1099_print_format",
+		args: {"filters": query_report.get_values()}
+	}).done(() => {
+	}).fail((f) => {
+		console.log(f);
+	});
+}
