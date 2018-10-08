@@ -9,7 +9,7 @@
  "idx": 0, 
  "is_standard": "Yes", 
  "letter_head": "", 
- "modified": "2018-09-14 12:18:17.698139", 
+ "modified": "2018-09-18 08:52:28.447312", 
  "modified_by": "Administrator", 
  "module": "Regional", 
  "name": "IRS 1099", 
@@ -18,5 +18,12 @@
  "ref_doctype": "Supplier", 
  "report_name": "IRS 1099", 
  "report_type": "Script Report", 
- "roles": []
+ "roles": [
+  {
+   "role": "System Manager"
+  }, 
+  {
+   "role": "Accounts Manager"
+  }
+ ]
 }

@@ -4,14 +4,18 @@
 from __future__ import unicode_literals
 import frappe
 import json
-from frappe import _
+from frappe import _, _dict
 from frappe.utils import nowdate
+from frappe.utils.data import fmt_money
 from erpnext.accounts.utils import get_fiscal_year
 from PyPDF2 import PdfFileWriter
+from frappe.utils.pdf import get_pdf
 from frappe.utils.print_format import read_multi_pdf
+from frappe.utils.jinja import render_template
 
 
 def execute(filters=None):
+	filters = filters if isinstance(filters, _dict) else _dict(filters)
 	if not filters:
 		filters.setdefault('fiscal_year', get_fiscal_year(nowdate())[0])
 		filters.setdefault('company', frappe.db.get_default("company"))
@@ -35,9 +39,11 @@ def execute(filters=None):
 			gl.party
 
 		ORDER BY
-			gl.party DESC""", {"fiscal_year": filters.fiscal_year,
-				"supplier_group": filters.supplier_group,
-				"company": filters.company}, as_dict=True)
+			gl.party DESC""",
+		{"fiscal_year": filters.fiscal_year,
+			"supplier_group": filters.supplier_group,
+			"company": filters.company},
+		as_dict=True)
 	return columns, data
 
 
@@ -73,11 +79,79 @@ def get_columns():
 		}
 	]
 
+
 @frappe.whitelist()
-def irs_1099_print_format(filters):
-	filters = json.loads(filters)
+def irs_1099_print(filters):
+	if not filters:
+		frappe._dict({
+			"company": frappe.db.get_default("Company"),
+			"fiscal_year": frappe.db.get_default("fiscal_year")})
+	else:
+		filters = frappe._dict(json.loads(filters))
+	company_address = get_payer_address_html(filters.company)
+	company_tin = frappe.db.get_value("Company", filters.company, "tax_id")
 	columns, data = execute(filters)
+	print_html = ""
+	template = frappe.get_doc("Print Format", "IRS 1099 Form").html
 	output = PdfFileWriter()
+	# {u'supplier_group': u'Services',
+	# u'recipient_street_address': u'558 Beech Hill Road<br>\n',
+	# u'company': u'Matteson Farm', u'payer_street_address': u'540 Mountain Road<br>\nEpsom, NH 03234<br>',
+	# u'company_tin': u'04-9784563', u'recipient_city_state': u'Hopkinton, New Hampshire 03229<br>\n',
+	# u'payments': 200.0, u'supplier': u'AgriTheory', u'tax_id': u'04-1234567'}
 	for row in data:
-		output = frappe.get_print("Supplier", row.name, print_format='IRS 1099', as_pdf=True, output=output)
-	filecontent = read_multi_pdf(output)
+		row["company"] = filters.company
+		row["company_tin"] = company_tin
+		row["payer_street_address"] = company_address
+		row["recipient_street_address"], row["recipient_city_state"] = get_street_address_html("Supplier", row.supplier)
+		row["payments"] = fmt_money(row["payments"], precision=0, currency="USD")
+		frappe._dict(row)
+		print(row)
+		pdf = get_pdf(render_template(template, row), output=output if output else None)
+		print(pdf)
+	frappe.local.response.filename = filters.fiscal_year + " " + filters.company + " IRS 1099 Forms"
+	frappe.local.response.filecontent = read_multi_pdf(output)
+	frappe.local.response.type = "download"
+
+
+def get_payer_address_html(company):
+		address_list = frappe.db.sql("""
+			SELECT
+				name
+			FROM
+				tabAddress
+			WHERE
+				is_your_company_address = 1
+			ORDER BY
+				address_type="Postal" DESC, address_type="Billing" DESC
+			LIMIT 1
+			""", {"company": company}, as_dict=True)
+		if address_list:
+			company_address = address_list[0]["name"]
+			return frappe.get_doc("Address", company_address).get_display()
+		else:
+			return ""
+
+
+def get_street_address_html(party_type, party):
+		address_list = frappe.db.sql("""
+			SELECT
+				link.parent
+			FROM `tabDynamic Link` link, `tabAddress` address
+			WHERE link.parenttype = "Address"
+			AND link.link_name = %(party)s
+			ORDER BY address.address_type="Postal" DESC,
+				address.address_type="Billing" DESC
+			LIMIT 1
+			""", {"party": party}, as_dict=True)
+		if address_list:
+			supplier_address = address_list[0]["parent"]
+			doc = frappe.get_doc("Address", supplier_address)
+			street = doc.address_line1 + "<br>\n" + doc.address_line2 + "<br>\n" if doc.address_line2 else doc.address_line1 + "<br>\n"
+			city = doc.city + ", " if doc.city else ""
+			city = city + doc.state + " " if doc.state else city
+			city = city + doc.pincode if doc.pincode else city
+			city += "<br>\n"
+			return street, city
+		else:
+			return ""
