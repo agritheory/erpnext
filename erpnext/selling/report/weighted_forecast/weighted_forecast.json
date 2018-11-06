@@ -1,0 +1,38 @@
+{
+ "add_total_row": 0, 
+ "creation": "2018-08-26 17:19:14.093073", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2018-08-27 15:34:46.518547", 
+ "modified_by": "Administrator", 
+ "module": "Selling", 
+ "name": "Weighted Forecast", 
+ "owner": "Administrator", 
+ "prepared_report": 0, 
+ "ref_doctype": "Forecast", 
+ "report_name": "Weighted Forecast", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "System Manager"
+  }, 
+  {
+   "role": "Sales Manager"
+  }, 
+  {
+   "role": "Sales Master Manager"
+  }, 
+  {
+   "role": "Sales User"
+  }, 
+  {
+   "role": "Accounts Manager"
+  }, 
+  {
+   "role": "Accounts User"
+  }
+ ]
+}

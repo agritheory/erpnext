@@ -14,9 +14,14 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Forecast",
+					"description": _("Forecast"),
+				},
+				{
+					"type": "doctype",
 					"name": "Sales Order",
 					"description": _("Confirmed orders from Customers."),
-				},
+				}
 			]
 		},
 		{
