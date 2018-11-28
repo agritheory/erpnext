@@ -1,0 +1,98 @@
+[
+    {
+      "doctype": "Indirect Expense",
+      "name": "IE-00006",
+      "accounts_payable_account": "_Test Payable - _TC",
+      "amount_due": 24691.34,
+      "company": "_Test Company",
+      "company_currency": "INR",
+      "due_date": "2014-08-27",
+      "invoice_date": "2014-07-27",
+      "party": "_Test Supplier",
+      "party_type": "Supplier",
+      "payables_account_currency": "INR",
+      "payment_terms_template": "",
+      "posting_date": "2014-08-01",
+      "project": "_Test Project",
+      "ref_number": "Invoice #000123",
+      "rounding_adjustment": 0.0,
+      "entries": [
+        {
+          "account": "Office Rent - _TC",
+          "account_currency": "INR",
+          "amount": 12345.67,
+          "amount_in_company_currency": 0.0,
+          "amount_in_payables_account_currency": 0.0,
+          "campaign": "",
+          "cost_center": "",
+          "doctype": "Indirect Expense Entry",
+          "exchange_rate": 1.0,
+          "invoice_currency": "INR",
+          "project": "",
+          "remark": ""
+        },
+        {
+          "account": "Postal Expenses - _TC",
+          "account_currency": "INR",
+          "amount": 12345.67,
+          "amount_in_company_currency": 0.0,
+          "amount_in_payables_account_currency": 0.0,
+          "campaign": "",
+          "cost_center": "",
+          "doctype": "Indirect Expense Entry",
+          "exchange_rate": 1.0,
+          "invoice_currency": "INR",
+          "project": "",
+          "remark": ""
+        }
+      ]
+    },
+    {
+      "doctype": "Indirect Expense",
+      "name": "IE-00006",
+      "accounts_payable_account": "_Test Payable - _TC",
+      "amount_due": 200.0,
+      "company": "_Test Company 1 ",
+      "company_currency": "USD",
+      "due_date": "2014-08-27",
+      "invoice_date": "2014-07-27",
+      "party": "_Test Supplier",
+      "party_type": "Supplier",
+      "payables_account_currency": "USD",
+      "payment_terms_template": "",
+      "posting_date": "2014-08-01",
+      "project": "_Test Project",
+      "ref_number": "Invoice #000123",
+      "rounding_adjustment": 0.0,
+      "entries": [
+        {
+          "account": "Office Rent - _TC",
+          "account_currency": "USD",
+          "amount": 100.0,
+          "amount_in_company_currency": 0.0,
+          "amount_in_payables_account_currency": 0.0,
+          "campaign": "",
+          "cost_center": "",
+          "doctype": "Indirect Expense Entry",
+          "exchange_rate": 1.0,
+          "invoice_currency": "USD",
+          "project": "",
+          "remark": ""
+        },
+        {
+          "account": "Postal Expenses - _TC",
+          "account_currency": "USD",
+          "amount": 10000.0,
+          "amount_in_company_currency": 0.0,
+          "amount_in_payables_account_currency": 0.0,
+          "campaign": "",
+          "cost_center": "",
+          "doctype": "Indirect Expense Entry",
+          "exchange_rate": 1.0,
+          "invoice_currency": "USD",
+          "project": "",
+          "remark": ""
+        }
+      ]
+    }
+  ]
