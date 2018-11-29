@@ -27,6 +27,11 @@ def get_data():
 					"description": _("Bank/Cash transactions against party or for internal transfer")
 				},
 				{
+					"type": "doctype",
+					"name": "Indirect Expense",
+					"description": _("Indirect Expense")
+				},
+				{
 					"type": "page",
 					"name": "pos",
 					"label": _("POS"),

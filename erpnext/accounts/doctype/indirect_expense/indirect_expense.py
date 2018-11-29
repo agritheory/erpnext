@@ -21,6 +21,7 @@ class IndirectExpense(AccountsController):
 		super(IndirectExpense, self).__init__(*args, **kwargs)
 
 	def validate(self):
+		self.update_amount_due()
 		self.check_similar_invoice_number_and_amount()
 		self.validate_multi_currency()
 		self.populate_default_cost_centers()
@@ -52,6 +53,12 @@ class IndirectExpense(AccountsController):
 			return {"payables": payables, "payables_account_currency": payables_account_currency}
 		else:
 			frappe.throw("Please set company before payables account.")
+
+	def update_amount_due(self):
+		running_total = 0
+		for i in self.entries:
+			running_total += i.amount_in_payables_account_currency
+		self.amount_due = running_total
 
 	def calc_exchange_rate(self):
 		for row in self.entries:

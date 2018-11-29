@@ -57,22 +57,21 @@ frappe.ui.form.on("Indirect Expense", {
 frappe.ui.form.on("Indirect Expense Entry", {
 	account: (frm, cdt, cdn) => {
 		calc_exchange_rate(frm, cdt, cdn);
-		update_total_due(frm);
+		update_amount_due(frm);
 	},
 	amount: (frm, cdt, cdn) => {
 		calc_exchange_rate(frm, cdt, cdn);
-		update_total_due(frm);
+		update_amount_due(frm);
 	},
 	entries_remove: frm => {
-		update_total_due(frm);
+		update_amount_due(frm);
 	},
 	entries_add: frm => {
-		update_total_due(frm);
+		update_amount_due(frm);
 	},
 	invoice_currency: (frm, cdt, cdn) => {
 		calc_exchange_rate(frm, cdt, cdn);
-		update_total_due(frm);
-		set_entries_currency(frm);
+		update_amount_due(frm);
 	},
 });
 
@@ -113,7 +112,6 @@ function get_payables_account(frm){
 		frm.set_value("payables_account_currency", r.message.payables_account_currency);
 		if(frm.doc.payables_account_currency != frm.doc.company_currency){
 			frm.set_currency_labels(["amount_due"], frm.doc.payables_account_currency);
-			set_entries_currency(frm);
 		}
 	}).fail((f) => {
 		console.log(f);
@@ -141,7 +139,7 @@ function calc_exchange_rate(frm, cdt, cdn){
 			doc: frm.doc,
 			args: {"row": row},
 		}).done(() => {
-			update_total_due(frm);
+			update_amount_due(frm);
 			frm.refresh_field("entries");
 		}).fail((f) => {
 			console.log(f);
@@ -151,18 +149,18 @@ function calc_exchange_rate(frm, cdt, cdn){
 	}
 }
 
-function update_total_due(frm) {
+function update_amount_due(frm) {
 	let running_total = 0;
 	for(let i in frm.doc.entries) {
 		if(frm.doc.entries[i].amount_in_payables_account_currency != undefined){
 			running_total += frm.doc.entries[i].amount_in_payables_account_currency;
 		}
 	}
-	// frm.doc.amount_due = format_currency(running_total, String(frm.doc.payables_account_currency));
 	if(frm.doc.payables_account_currency != frm.doc.company_currency){
 		frm.set_currency_labels(["amount_due"], frm.doc.payables_account_currency);
 	}
 	frm.doc.outstanding_amount = format_currency(running_total, frm.doc.payables_account_currency);
+		frm.doc.amount_due = format_currency(running_total, frm.doc.payables_account_currency);
 	frm.refresh_fields();
 }
 
@@ -176,17 +174,6 @@ function get_due_date(frm){
 		}).fail((f) => {
 			console.log(f);
 		});
-}
-
-function set_entries_currency(frm){
-	if(frm.doc.entries[0].amount > 0){
-		let entries = frm.fields_dict["entries"].grid;
-		$.each(frm.doc.entries, function(i) {
-			// frm.doc.entries[i].set_currency_labels(["amount_in_payables_account_currency"],
-			// 	frm.doc.payables_account_currency);
-			entries[i].docfields[3].options = frm.doc.entries[i].invoice_currency;
-		});
-	}
 }
 
 function route_to_pi(frm){

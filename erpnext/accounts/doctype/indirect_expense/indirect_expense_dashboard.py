@@ -1,16 +1,29 @@
+from frappe import _
+
+
 def get_data():
 	return {
-		'fieldname': 'holiday_list',
+		'fieldname': 'purchase_invoice',
 		'non_standard_fieldnames': {
-			'Company': 'default_holiday_list',
-			'Leave Period': 'optional_holiday_list'
+			'Journal Entry': 'reference_name',
+			'Payment Entry': 'reference_name',
+			# 'Payment Request': 'reference_name',
+			'Landed Cost Voucher': 'receipt_document',
+			# 'Purchase Invoice': 'return_against',
+			'Auto Repeat': 'reference_document'
 		},
 		'transactions': [
 			{
-				'items': ['Company', 'Employee', 'Workstation'],
+				'label': _('Payment'),
+				'items': ['Payment Entry', 'Journal Entry']
 			},
 			{
-				'items': ['Leave Period', 'Shift Type']
-			}
+				'label': _('Subscription'),
+				'items': ['Auto Repeat']
+			},
+			{
+				'label': _('Costing'),
+				'items': ['Landed Cost Voucher']
+			},
 		]
 	}
