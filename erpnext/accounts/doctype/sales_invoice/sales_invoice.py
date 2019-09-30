@@ -560,6 +560,8 @@ class SalesInvoice(SellingController):
 
 	def validate_delivery_note(self):
 		for d in self.get("items"):
+			if frappe.db.get_value("Delivery Note Item", d.dn_detail, 'target_warehouse'):
+				continue
 			if d.delivery_note:
 				msgprint(_("Stock cannot be updated against Delivery Note {0}").format(d.delivery_note), raise_exception=1)
 
