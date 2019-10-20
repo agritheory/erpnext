@@ -34,6 +34,19 @@ class BuyingController(StockController):
 			return _("From {0} | {1} {2}").format(self.supplier_name, self.currency,
 				self.grand_total)
 
+	def submit(self):
+		if self.doctype == "Purchase Receipt" or (self.doctype == "Purchase Invoice" and self.update_stock):
+			serial_nos = 0
+			for d in self.items:
+				serial_nos += len(cstr(d.serial_no).split('\n'))
+
+			if serial_nos > 100:
+				msgprint(_("The task has been enqueued as a background job. In case there is any issue on processing in background, the system will add a comment about the error on this document and revert to the Draft stage"))
+				self.queue_action('submit', queue='long')
+				return
+
+		self._submit()
+
 	def validate(self):
 		super(BuyingController, self).validate()
 		if getattr(self, "supplier", None) and not self.supplier_name:
