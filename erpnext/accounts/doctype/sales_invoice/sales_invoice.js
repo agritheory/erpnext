@@ -263,7 +263,8 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 				party_type: "Customer",
 				account: this.frm.doc.debit_to,
 				price_list: this.frm.doc.selling_price_list,
-				pos_profile: pos_profile
+				pos_profile: pos_profile,
+				ship_to: this.frm.doc.ship_to
 			}, function() {
 				me.apply_pricing_rule();
 			});
