@@ -107,6 +107,10 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		});
 	},
 
+	ship_to: function() {
+		this.customer();
+	},
+
 	customer_address: function() {
 		erpnext.utils.get_address_display(this.frm, "customer_address");
 		erpnext.utils.set_taxes_from_address(this.frm, "customer_address", "customer_address", "shipping_address_name");

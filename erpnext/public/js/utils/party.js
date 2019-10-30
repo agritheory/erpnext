@@ -18,6 +18,7 @@ erpnext.utils.get_party_details = function(frm, method, args, callback) {
 
 			args = {
 				party: frm.doc.customer || frm.doc.party_name,
+				ship_to: frm.doc.ship_to,
 				party_type: party_type,
 				price_list: frm.doc.selling_price_list
 			};
