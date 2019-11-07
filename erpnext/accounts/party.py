@@ -47,6 +47,8 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 	currency = party.default_currency if party.get("default_currency") else get_company_currency(company)
 
 	ship_to = frappe.get_doc(party_type, ship_to) if ship_to else frappe._dict()
+	if ship_to:
+		out['ship_to_name'] = ship_to.get(scrub(party_type) + "_name")
 
 	party_address, shipping_address = set_address_details(out, party, party_type, doctype, company, party_address, shipping_address, ship_to)
 	set_contact_details(out, party, party_type)
