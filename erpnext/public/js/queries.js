@@ -65,12 +65,12 @@ $.extend(erpnext.queries, {
 				frappe.throw(__("Please set {0}",
 					[__(frappe.meta.get_label(doc.doctype, frappe.dynamic_link.fieldname, doc.name))]));
 			}
-			console.log(frappe.dynamic_link)
+			// console.log(frappe.dynamic_link)
 			return {
 				query: 'frappe.contacts.doctype.address.address.address_query',
 				filters: {
 					link_doctype: frappe.dynamic_link.doctype,
-					link_name: doc[frappe.dynamic_link.fieldname]
+					link_name: doc[frappe.dynamic_link.priority_fieldname || frappe.dynamic_link.fieldname] || doc[frappe.dynamic_link.fieldname]
 				}
 			};
 		}
