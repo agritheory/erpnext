@@ -89,7 +89,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	refresh: function() {
 		this._super();
 
-		frappe.dynamic_link = {doc: this.frm.doc, fieldname: 'customer', doctype: 'Customer'}
+		frappe.dynamic_link = {doc: this.frm.doc, fieldname: 'customer', doctype: 'Customer', priority_fieldname: 'ship_to'}
 
 		this.frm.toggle_display("customer_name",
 			(this.frm.doc.customer_name && this.frm.doc.customer_name!==this.frm.doc.customer));
