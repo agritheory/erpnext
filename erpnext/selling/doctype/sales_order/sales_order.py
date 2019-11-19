@@ -887,7 +887,7 @@ def make_purchase_order(source_name, for_supplier=None, selected_items=[], targe
 		target.run_method("calculate_taxes_and_totals")
 
 	def update_item(source, target, source_parent):
-		target.schedule_date = source.delivery_date
+		target.schedule_date = max(getdate(source.delivery_date), getdate())
 		target.qty = flt(source.qty) - flt(source.ordered_qty)
 		target.stock_qty = (flt(source.qty) - flt(source.ordered_qty)) * flt(source.conversion_factor)
 		target.project = source_parent.project
