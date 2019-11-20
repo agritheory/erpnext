@@ -284,7 +284,9 @@ class SalesInvoice(SellingController):
 				'second_join_field': 'so_detail',
 				'overflow_type': 'delivery',
 				'extra_cond': """ and exists(select name from `tabSales Invoice`
-					where name=`tabSales Invoice Item`.parent and update_stock = 1)"""
+						where name=`tabSales Invoice Item`.parent and update_stock = 1)
+					and not exists(select name from `tabDelivery Note Item`
+						where `tabDelivery Note Item`.so_detail = `tabSales Invoice Item`.so_detail and ifnull(`tabDelivery Note Item`.target_warehouse, '') != '')"""
 			})
 			if cint(self.is_return):
 				self.status_updater.append({
