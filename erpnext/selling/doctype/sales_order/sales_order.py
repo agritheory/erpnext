@@ -874,20 +874,18 @@ def make_purchase_order(source_name, for_supplier=None, selected_items=[], targe
 				target.shipping_address = source.customer_address
 				target.shipping_address_display = source.address_display
 
-			target.customer_contact_person = source.contact_person
-			target.customer_contact_display = source.contact_display
-			target.customer_contact_mobile = source.contact_mobile
-			target.customer_contact_email = source.contact_email
-
-		else:
-			target.customer = ""
-			target.customer_name = ""
+		target.customer = source.customer
+		target.customer_name = source.customer_name
+		target.customer_contact_person = source.contact_person
+		target.customer_contact_display = source.contact_display
+		target.customer_contact_mobile = source.contact_mobile
+		target.customer_contact_email = source.contact_email
 
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
 
 	def update_item(source, target, source_parent):
-		target.schedule_date = source.delivery_date
+		target.schedule_date = max(getdate(source.delivery_date), getdate())
 		target.qty = flt(source.qty) - flt(source.ordered_qty)
 		target.stock_qty = (flt(source.qty) - flt(source.ordered_qty)) * flt(source.conversion_factor)
 		target.project = source_parent.project
