@@ -40,7 +40,8 @@ class DeliveryNote(SellingController):
 			'overflow_type': 'delivery',
 			'second_source_extra_cond': """ and exists(select name from `tabSales Invoice`
 				where name=`tabSales Invoice Item`.parent and update_stock = 1)
-				and ifnull(`tabDelivery Note Item`.target_warehouse, '') = ''"""
+				and not exists(select name from `tabDelivery Note Item`
+					where `tabDelivery Note Item`.so_detail = `tabSales Invoice Item`.so_detail and ifnull(`tabDelivery Note Item`.target_warehouse, '') != '')"""
 		},
 		{
 			'source_dt': 'Delivery Note Item',
