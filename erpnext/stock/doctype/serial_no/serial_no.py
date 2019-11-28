@@ -404,10 +404,10 @@ def make_serial_no(serial_no, args):
 		sr.purchase_document_no = args.get('purchase_document_no')
 		sr.supplier = args.get('supplier')
 
-	sr.insert()
+	sr.insert(ignore_permissions=True)
 	if args.get('warehouse'):
 		sr.warehouse = args.get('warehouse')
-		sr.save()
+		sr.save(ignore_permissions=True)
 
 	return sr.name
 

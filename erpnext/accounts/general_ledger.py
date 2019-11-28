@@ -152,7 +152,7 @@ def validate_account_for_perpetual_inventory(gl_map):
 				continue
 
 			account_bal, stock_bal, warehouse_list = get_stock_and_account_balance(account,
-				gl_map[0].posting_date, gl_map[0].company)
+				gl_map[0].posting_date, gl_map[0].company, ignore_account_permission=True)
 
 			if gl_map[0].voucher_type=="Journal Entry":
 				# In case of Journal Entry, there are no corresponding SL entries,
