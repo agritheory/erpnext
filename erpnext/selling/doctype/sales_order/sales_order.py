@@ -19,6 +19,7 @@ from erpnext.selling.doctype.customer.customer import check_credit_limit
 from erpnext.stock.doctype.item.item import get_item_defaults
 from erpnext.setup.doctype.item_group.item_group import get_item_group_defaults
 from erpnext.manufacturing.doctype.production_plan.production_plan import get_items_for_material_requests
+from erpnext.controllers.accounts_controller import get_taxes_and_charges
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import validate_inter_company_party, update_linked_doc,\
 	unlink_inter_company_doc
 
@@ -885,6 +886,9 @@ def make_purchase_order(source_name, for_supplier=None, selected_items=[], targe
 		target.customer_contact_email = source.contact_email
 
 		target.run_method("set_missing_values")
+		if not target.get("taxes") and target.get("taxes_and_charges"):
+			for d in get_taxes_and_charges("Purchase Taxes and Charges Template", target.taxes_and_charges):
+				target.append("taxes", d)
 		target.run_method("calculate_taxes_and_totals")
 
 	def update_item(source, target, source_parent):
