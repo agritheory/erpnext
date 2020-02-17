@@ -257,33 +257,33 @@ class BuyingController(StockController):
 	def update_raw_materials_supplied_based_on_stock_entries(self):
 		self.set('supplied_items', [])
 
-			for d in items:
-				qty = d.qty - backflushed_raw_materials.get(d.item_code, 0)
-				rm = self.append(raw_material_table, {})
-				rm.rm_item_code = d.item_code
-				rm.item_name = d.item_name
-				rm.main_item_code = d.main_item_code
-				rm.description = d.description
-				rm.stock_uom = d.stock_uom
-				rm.required_qty = qty
-				rm.consumed_qty = qty
-				rm.serial_no = d.serial_no
-				rm.batch_no = d.batch_no
+		for d in items:
+			qty = d.qty - backflushed_raw_materials.get(d.item_code, 0)
+			rm = self.append(raw_material_table, {})
+			rm.rm_item_code = d.item_code
+			rm.item_name = d.item_name
+			rm.main_item_code = d.main_item_code
+			rm.description = d.description
+			rm.stock_uom = d.stock_uom
+			rm.required_qty = qty
+			rm.consumed_qty = qty
+			rm.serial_no = d.serial_no
+			rm.batch_no = d.batch_no
 
-				# get raw materials rate
-				from erpnext.stock.utils import get_incoming_rate
-				rm.rate = get_incoming_rate({
-					"item_code": d.item_code,
-					"warehouse": self.supplier_warehouse,
-					"batch_no": d.batch_no,
-					"posting_date": self.posting_date,
-					"posting_time": self.posting_time,
-					"qty": -1 * qty,
-					"serial_no": rm.serial_no
-				})
-				if not rm.rate:
-					rm.rate = get_valuation_rate(d.item_code, self.supplier_warehouse,
-						self.doctype, self.name, d.batch_no, currency=self.company_currency, company = self.company)
+			# get raw materials rate
+			from erpnext.stock.utils import get_incoming_rate
+			rm.rate = get_incoming_rate({
+				"item_code": d.item_code,
+				"warehouse": self.supplier_warehouse,
+				"batch_no": d.batch_no,
+				"posting_date": self.posting_date,
+				"posting_time": self.posting_time,
+				"qty": -1 * qty,
+				"serial_no": rm.serial_no
+			})
+			if not rm.rate:
+				rm.rate = get_valuation_rate(d.item_code, self.supplier_warehouse,
+					self.doctype, self.name, d.batch_no, currency=self.company_currency, company = self.company)
 
 		for item in self.get('items'):
 			# reset raw_material cost
