@@ -35,9 +35,11 @@ def get_party_details(party=None, account=None, party_type="Customer", company=N
 
 def _get_party_details(party=None, account=None, party_type="Customer", company=None, posting_date=None,
 	bill_date=None, price_list=None, currency=None, doctype=None, ignore_permissions=False,
-	fetch_payment_terms_template=True, party_address=None, shipping_address=None, pos_profile=None, ship_to=None):
+	fetch_payment_terms_template=True, party_address=None, company_address=None, shipping_address=None, pos_profile=None, ship_to=None):
 
-	party_details = frappe._dict(set_account_and_due_date(party, account, party_type, company, posting_date, bill_date, doctype))
+	party_details = frappe._dict(set_account_and_due_date(
+		party, account, party_type, company, posting_date, bill_date, doctype
+	))
 	party = party_details[party_type.lower()]
 
 	if not ignore_permissions and not frappe.has_permission(party_type, "read", party):
@@ -48,12 +50,13 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 
 	ship_to = frappe.get_doc(party_type, ship_to) if ship_to else frappe._dict()
 	if ship_to:
-		out['ship_to_name'] = ship_to.get(scrub(party_type) + "_name")
+		party_details['ship_to_name'] = ship_to.get(scrub(party_type) + "_name")
 
-	party_address, shipping_address = set_address_details(out, party, party_type, doctype, company, party_address, shipping_address, ship_to)
-	set_contact_details(out, party, party_type)
-	set_other_values(out, party, party_type)
-	set_price_list(out, party, party_type, price_list, pos_profile)
+	print(party_details)
+	party_address, shipping_address = set_address_details(party_details, party, party_type, doctype, company, party_address, company_address, shipping_address)
+	set_contact_details(party_details, party, party_type)
+	set_other_values(party_details, party, party_type)
+	set_price_list(party_details, party, party_type, price_list, pos_profile)
 
 	party_details["tax_category"] = get_address_tax_category(party.get("tax_category"),
 		party_address, shipping_address if party_type != "Supplier" else party_address)
@@ -74,7 +77,7 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 		party_details["sales_team"] = [{
 			"sales_person": d.sales_person,
 			"allocated_percentage": d.allocated_percentage or None
-		} for d in ship_to.get("sales_team") or party.get("sales_team")]
+		} for d in party.get("sales_team")]
 
 	# supplier tax withholding category
 	if party_type == "Supplier" and party:
@@ -82,7 +85,7 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 
 	return party_details
 
-def set_address_details(out, party, party_type, doctype=None, company=None, party_address=None, shipping_address=None, ship_to=None):
+def set_address_details(party_details, party, party_type, doctype=None, company=None, party_address=None, company_address=None, shipping_address=None, ship_to=None):
 	billing_address_field = "customer_address" if party_type == "Lead" \
 		else party_type.lower() + "_address"
 	party_details[billing_address_field] = party_address or get_default_address(party_type, party.name)
@@ -92,8 +95,10 @@ def set_address_details(out, party, party_type, doctype=None, company=None, part
 	party_details.address_display = get_address_display(party_details[billing_address_field])
 	# shipping address
 	if party_type in ["Customer", "Lead"]:
-		out.shipping_address_name = shipping_address or get_party_shipping_address(party_type, ship_to.name or party.name)
-		out.shipping_address = get_address_display(out["shipping_address_name"])
+		party_details.shipping_address_name = (
+			shipping_address or get_party_shipping_address(party_type, party_details.ship_to_name or party.name)
+		)
+		party_details.shipping_address = get_address_display(party_details["shipping_address_name"])
 		if doctype:
 			party_details.update(get_fetch_values(doctype, 'shipping_address_name', party_details.shipping_address_name))
 
@@ -198,13 +203,13 @@ def set_account_and_due_date(party, account, party_type, company, posting_date, 
 		account = get_party_account(party_type, party, company)
 
 	account_fieldname = "debit_to" if party_type=="Customer" else "credit_to"
-	out = {
+	party_details = {
 		party_type.lower(): party,
 		account_fieldname : account,
 		"due_date": get_due_date(posting_date, party_type, party, company, bill_date)
 	}
 
-	return out
+	return party_details
 
 @frappe.whitelist()
 def get_party_account(party_type, party, company):
