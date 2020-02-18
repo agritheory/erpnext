@@ -52,7 +52,6 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 	if ship_to:
 		party_details['ship_to_name'] = ship_to.get(scrub(party_type) + "_name")
 
-	print(party_details)
 	party_address, shipping_address = set_address_details(party_details, party, party_type, doctype, company, party_address, company_address, shipping_address)
 	set_contact_details(party_details, party, party_type)
 	set_other_values(party_details, party, party_type)
@@ -77,7 +76,8 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 		party_details["sales_team"] = [{
 			"sales_person": d.sales_person,
 			"allocated_percentage": d.allocated_percentage or None
-		} for d in party.get("sales_team")]
+		} for d in ship_to.get("sales_team") or party.get("sales_team")]
+
 
 	# supplier tax withholding category
 	if party_type == "Supplier" and party:
