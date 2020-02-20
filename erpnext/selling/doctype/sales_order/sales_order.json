@@ -1,5 +1,4 @@
 {
- "actions": [],
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-06-18 12:39:59",
@@ -486,6 +485,7 @@
   },
   {
    "allow_bulk_edit": 1,
+   "allow_on_submit": 1,
    "fieldname": "items",
    "fieldtype": "Table",
    "label": "Items",
@@ -1195,8 +1195,7 @@
  "icon": "fa fa-file-text",
  "idx": 105,
  "is_submittable": 1,
- "links": [],
- "modified": "2019-12-30 19:15:28.605085",
+ "modified": "2020-02-20 15:20:40.632170",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Sales Order",
