@@ -15,6 +15,7 @@
   "fulfilment_status",
   "sb_terms",
   "start_date",
+  "contract_cycle",
   "cb_date",
   "end_date",
   "sb_signee",
@@ -29,10 +30,11 @@
   "requires_fulfilment",
   "fulfilment_deadline",
   "fulfilment_terms",
-  "sb_references",
   "document_type",
   "cb_links",
   "document_name",
+  "section_break_27",
+  "items",
   "amended_from"
  ],
  "fields": [
@@ -168,6 +170,7 @@
   {
    "fieldname": "sb_fulfilment",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Fulfilment Details"
   },
   {
@@ -189,12 +192,6 @@
    "fieldtype": "Table",
    "label": "Fulfilment Terms",
    "options": "Contract Fulfilment Checklist"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "sb_references",
-   "fieldtype": "Section Break",
-   "label": "References"
   },
   {
    "fieldname": "document_type",
@@ -223,10 +220,26 @@
    "options": "Contract",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_27",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Contract Item"
+  },
+  {
+   "fieldname": "contract_cycle",
+   "fieldtype": "Select",
+   "label": "Contract Cycle",
+   "options": "\nAnnual\nSemi-Annual\nQuarter\nMonth"
   }
  ],
  "is_submittable": 1,
- "modified": "2019-09-30 00:56:41.559681",
+ "modified": "2020-02-25 03:12:36.009032",
  "modified_by": "Administrator",
  "module": "CRM",
  "name": "Contract",
